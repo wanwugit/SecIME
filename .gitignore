@@ -9,6 +9,9 @@
 /plugin/*/src/main/assets/usr/
 # Generated asset descriptor
 /plugin/*/src/main/assets/descriptor.json
+# Rime prebuilt host binaries
+/plugin/rime/prebuilt-host/*.7z
+/plugin/rime/prebuilt-host/librime/
 
 # Intellij
 .idea/*

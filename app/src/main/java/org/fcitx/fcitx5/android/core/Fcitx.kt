@@ -194,6 +194,13 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     override suspend fun offsetCandidatePage(delta: Int) =
         withFcitxContext { offsetFcitxCandidatePage(delta) }
 
+    // Rime direct API — must be called from fcitx thread
+    override suspend fun rimeSelectSchema(schemaId: String): Unit = withFcitxContext { jniRimeSelectSchema(schemaId) }
+    override suspend fun rimeSetAsciiMode(asciiMode: Boolean): Unit = withFcitxContext { jniRimeSetAsciiMode(asciiMode) }
+    override suspend fun rimeToggleAsciiMode(): Unit = withFcitxContext { jniRimeToggleAsciiMode() }
+    override suspend fun rimeIsAsciiMode(): Boolean = withFcitxContext { jniRimeIsAsciiMode() }
+    override suspend fun rimeCurrentSchema(): String = withFcitxContext { jniRimeCurrentSchema() }
+
     init {
         if (lifecycle.currentState != FcitxLifecycle.State.STOPPED)
             throw IllegalAccessException("Fcitx5 has already been created!")
@@ -384,6 +391,22 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         @JvmStatic
         external fun scheduleEmpty()
 
+        // Rime direct API
+        @JvmStatic
+        external fun jniRimeSelectSchema(schemaId: String)
+
+        @JvmStatic
+        external fun jniRimeSetAsciiMode(asciiMode: Boolean)
+
+        @JvmStatic
+        external fun jniRimeToggleAsciiMode()
+
+        @JvmStatic
+        external fun jniRimeIsAsciiMode(): Boolean
+
+        @JvmStatic
+        external fun jniRimeCurrentSchema(): String
+
         /**
          * Called from native-lib
          */
@@ -420,35 +443,23 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
             DataManager.sync()
             val locale = Locales.fcitxLocale
             val dataDir = DataManager.dataDir.absolutePath
-            val plugins = DataManager.getLoadedPlugins()
-            val nativeLibDir = StringBuilder(context.applicationInfo.nativeLibraryDir)
-            val extDomains = arrayListOf<String>()
-            plugins.forEach {
-                if (it.nativeLibraryDir.isNotBlank()) {
-                    nativeLibDir.append(':')
-                    nativeLibDir.append(it.nativeLibraryDir)
-                }
-                it.domain?.let { d ->
-                    extDomains.add(d)
-                }
-            }
+            val nativeLibDir = context.applicationInfo.nativeLibraryDir
             Timber.d(
                 """
                Starting fcitx with:
                locale=$locale
                dataDir=$dataDir
                nativeLibDir=$nativeLibDir
-               extDomains=${extDomains.joinToString()}
             """.trimIndent()
             )
             with(FcitxApplication.getInstance().directBootAwareContext) {
                 startupFcitx(
                     locale,
                     dataDir,
-                    nativeLibDir.toString(),
+                    nativeLibDir,
                     (getExternalFilesDir(null) ?: filesDir).absolutePath,
                     (externalCacheDir ?: cacheDir).absolutePath,
-                    extDomains.toTypedArray()
+                    emptyArray()
                 )
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -536,9 +547,9 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         lifecycleRegistry.postEvent(FcitxLifecycle.Event.ON_START)
         ClipboardManager.addOnUpdateListener(onClipboardUpdate)
         DataManager.addOnNextSyncedCallback {
-            FcitxPluginServices.connectAll()
-        }
-        setupLogStream(AppPrefs.getInstance().internal.verboseLog.getValue())
+                // No plugin services to connect — Rime is embedded
+            }
+            setupLogStream(AppPrefs.getInstance().internal.verboseLog.getValue())
         dispatcher.start()
     }
 
@@ -550,7 +561,6 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         lifecycleRegistry.postEvent(FcitxLifecycle.Event.ON_STOP)
         Timber.i("Fcitx stop()")
         ClipboardManager.removeOnUpdateListener(onClipboardUpdate)
-        FcitxPluginServices.disconnectAll()
         dispatcher.stop().let {
             if (it.isNotEmpty())
                 Timber.w("${it.size} job(s) didn't get a chance to run!")

@@ -15,21 +15,18 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.fcitx.fcitx5.android.R
-import org.fcitx.fcitx5.android.core.FcitxEvent
-import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.bar.ExpandButtonStateMachine.BooleanKey.ExpandedCandidatesEmpty
 import org.fcitx.fcitx5.android.input.bar.ExpandButtonStateMachine.TransitionEvent.ExpandedCandidatesUpdated
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
-import org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
 import org.fcitx.fcitx5.android.input.candidates.expanded.decoration.FlexboxVerticalDecoration
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateMode.AlwaysFillWidth
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateMode.AutoFillWidth
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateMode.NeverFillWidth
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
 import org.fcitx.fcitx5.android.input.dependency.UniqueViewComponent
 import org.fcitx.fcitx5.android.input.dependency.context
-import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.inputView
 import org.fcitx.fcitx5.android.input.dependency.theme
@@ -38,11 +35,11 @@ import splitties.dimensions.dp
 import kotlin.math.max
 
 class HorizontalCandidateComponent :
-    UniqueViewComponent<HorizontalCandidateComponent, RecyclerView>(), InputBroadcastReceiver {
+    UniqueViewComponent<HorizontalCandidateComponent, RecyclerView>() {
 
     private val service by manager.inputMethodService()
     private val context by manager.context()
-    private val fcitx by manager.fcitx()
+    private val inputDecisionBus: InputDecisionBus by manager.must()
     private val theme by manager.theme()
     private val inputView by manager.inputView()
     private val bar: KawaiiBarComponent by manager.must()
@@ -95,7 +92,7 @@ class HorizontalCandidateComponent :
                     flexGrow = layoutFlexGrow
                 }
                 holder.itemView.setOnClickListener {
-                    fcitx.launchOnReady { it.select(holder.idx) }
+                    inputDecisionBus.onUiCandidateSelect(holder.idx)
                 }
                 holder.itemView.setOnLongClickListener {
                     inputView.showCandidateActionMenu(holder.idx, holder.text, holder.ui.root)
@@ -168,9 +165,7 @@ class HorizontalCandidateComponent :
         }
     }
 
-    override fun onCandidateUpdate(data: FcitxEvent.CandidateListEvent.Data) {
-        val candidates = data.candidates
-        val total = data.total
+    fun updateFromPipeline(candidates: Array<String>, total: Int) {
         val maxSpanCount = maxSpanCountPref.getValue()
         when (fillStyle) {
             NeverFillWidth -> {
@@ -181,7 +176,6 @@ class HorizontalCandidateComponent :
             AutoFillWidth -> {
                 layoutMinWidth = view.width / maxSpanCount - dividerDrawable.intrinsicWidth
                 layoutFlexGrow = if (candidates.size < maxSpanCount) 0f else 1f
-                // [^1] total candidates count < maxSpanCount
                 secondLayoutPassNeeded = candidates.size < maxSpanCount
                 secondLayoutPassDone = false
             }
@@ -192,7 +186,6 @@ class HorizontalCandidateComponent :
             }
         }
         adapter.updateCandidates(candidates, total)
-        // not sure why empty candidates won't trigger `FlexboxLayoutManager#onLayoutCompleted()`
         if (candidates.isEmpty()) {
             refreshExpanded(0)
         }

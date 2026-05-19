@@ -8,29 +8,26 @@ package org.fcitx.fcitx5.android.input.keyboard
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import org.fcitx.fcitx5.android.core.FcitxAPI
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.broadcast.PreeditEmptyStateComponent
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
 import org.fcitx.fcitx5.android.input.dependency.context
 import org.fcitx.fcitx5.android.input.dependency.fcitx
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
-import org.fcitx.fcitx5.android.input.dialog.AddMoreInputMethodsPrompt
 import org.fcitx.fcitx5.android.input.dialog.InputMethodPickerDialog
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.BackspaceSwipeState.Reset
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.BackspaceSwipeState.Selection
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.BackspaceSwipeState.Stopped
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.CommitAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.DeleteSelectionAction
-import org.fcitx.fcitx5.android.input.keyboard.KeyAction.FcitxKeyAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.LangSwitchAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.MoveSelectionAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.PickerSwitchAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.QuickPhraseAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.ShowInputMethodPickerAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.SpaceLongPressAction
-import org.fcitx.fcitx5.android.input.keyboard.KeyAction.SymAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.UnicodeAction
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
@@ -51,6 +48,7 @@ class CommonKeyActionListener :
     private val context by manager.context()
     private val fcitx by manager.fcitx()
     private val service by manager.inputMethodService()
+    private val inputDecisionBus: InputDecisionBus by manager.must()
     private val preeditState: PreeditEmptyStateComponent by manager.must()
     private val horizontalCandidate: HorizontalCandidateComponent by manager.must()
     private val windowManager: InputWindowManager by manager.must()
@@ -64,21 +62,6 @@ class CommonKeyActionListener :
 
     private var backspaceSwipeState = Stopped
 
-    // there should be a new fcitx API for this
-    private suspend fun FcitxAPI.commitAndReset() {
-        if (inputMethodEntryCached.languageCode.startsWith("zh")) {
-            // Chinese: select 1st candidate, except prediction candidates
-            if (clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty()) {
-                // preedit not empty, maybe there are candidates to select ...
-                select(0)
-            }
-        } else {
-            // Other languages: commit preedit as-is
-            service.finishComposing()
-        }
-        reset()
-    }
-
     private fun showInputMethodPicker() {
         fcitx.launchOnReady {
             service.lifecycleScope.launch {
@@ -90,41 +73,23 @@ class CommonKeyActionListener :
     val listener by lazy {
         KeyActionListener { action, _ ->
             when (action) {
-                is FcitxKeyAction -> service.postFcitxJob {
-                    sendKey(action.act, action.states.states, action.code)
+                is CommitAction -> {
+                    inputDecisionBus.onCommitCurrentPreedit()
+                    inputDecisionBus.onCommitTextToApp(action.text)
                 }
-                is SymAction -> service.postFcitxJob {
-                    sendKey(action.sym, action.states)
+                is QuickPhraseAction -> {
+                    inputDecisionBus.onQuickPhrase()
                 }
-                is CommitAction -> service.postFcitxJob {
-                    commitAndReset()
-                    service.lifecycleScope.launch { service.commitText(action.text) }
-                }
-                is QuickPhraseAction -> service.postFcitxJob {
-                    commitAndReset()
-                    triggerQuickPhrase()
-                }
-                is UnicodeAction -> service.postFcitxJob {
-                    commitAndReset()
-                    triggerUnicode()
+                is UnicodeAction -> {
+                    inputDecisionBus.onUnicode()
                 }
                 is LangSwitchAction -> {
                     when (langSwitchKeyBehavior) {
                         LangSwitchBehavior.Enumerate -> {
-                            service.postFcitxJob {
-                                if (enabledIme().size < 2) {
-                                    service.lifecycleScope.launch {
-                                        service.showDialog(AddMoreInputMethodsPrompt.build(context))
-                                    }
-                                } else {
-                                    enumerateIme()
-                                }
-                            }
+                            inputDecisionBus.onLangSwitchEnumerate()
                         }
                         LangSwitchBehavior.ToggleActivate -> {
-                            service.postFcitxJob {
-                                toggleIme()
-                            }
+                            inputDecisionBus.onLangSwitchToggle()
                         }
                         LangSwitchBehavior.NextInputMethodApp -> {
                             service.switchToNextIME()
@@ -156,7 +121,7 @@ class CommonKeyActionListener :
                         Stopped -> {}
                         Selection -> service.deleteSelection()
                         Reset -> if (action.totalCnt < 0) { // swipe left
-                            service.postFcitxJob { reset() }
+                            inputDecisionBus.onT9Reset()
                         }
                     }
                     backspaceSwipeState = Stopped
@@ -173,12 +138,8 @@ class CommonKeyActionListener :
                 is SpaceLongPressAction -> {
                     when (spaceKeyLongPressBehavior) {
                         SpaceLongPressBehavior.None -> {}
-                        SpaceLongPressBehavior.Enumerate -> service.postFcitxJob {
-                            enumerateIme()
-                        }
-                        SpaceLongPressBehavior.ToggleActivate -> service.postFcitxJob {
-                            toggleIme()
-                        }
+                        SpaceLongPressBehavior.Enumerate -> inputDecisionBus.onLangSwitchEnumerate()
+                        SpaceLongPressBehavior.ToggleActivate -> inputDecisionBus.onLangSwitchToggle()
                         SpaceLongPressBehavior.ShowPicker -> showInputMethodPicker()
                     }
                 }

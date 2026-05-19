@@ -22,13 +22,13 @@ import org.fcitx.fcitx5.android.ui.main.AboutFragment
 import org.fcitx.fcitx5.android.ui.main.DeveloperFragment
 import org.fcitx.fcitx5.android.ui.main.LicensesFragment
 import org.fcitx.fcitx5.android.ui.main.MainFragment
-import org.fcitx.fcitx5.android.ui.main.PluginFragment
 import org.fcitx.fcitx5.android.ui.main.settings.addon.AddonConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.addon.AddonListFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.AdvancedSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.CandidatesSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.ClipboardSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.KeyboardSettingsFragment
+import org.fcitx.fcitx5.android.ui.main.settings.behavior.NineKeySettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.SymbolSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.global.GlobalConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodConfigFragment
@@ -81,7 +81,7 @@ sealed class SettingsRoute : Parcelable {
     data object Symbol : SettingsRoute()
 
     @Serializable
-    data object Plugin : SettingsRoute()
+    data object NineKey : SettingsRoute()
 
     @Serializable
     data object Advanced : SettingsRoute()
@@ -219,8 +219,8 @@ sealed class SettingsRoute : Parcelable {
             fragment<SymbolSettingsFragment, Symbol> {
                 label = ctx.getString(R.string.emoji_and_symbols)
             }
-            fragment<PluginFragment, Plugin> {
-                label = ctx.getString(R.string.plugins)
+            fragment<NineKeySettingsFragment, NineKey> {
+                label = ctx.getString(R.string.nine_key)
             }
             fragment<AdvancedSettingsFragment, Advanced> {
                 label = ctx.getString(R.string.advanced)

@@ -46,6 +46,8 @@ AddonInstance *AndroidSharedLibraryLoader::load(const AddonInfo &info,
             if (stringutils::consumePrefix(libname, "export:")) {
                 flag |= LibraryLoadHint::ExportExternalSymbolsHint;
             }
+            // Always export symbols so dlsym(RTLD_DEFAULT) can find bridge functions
+            flag |= LibraryLoadHint::ExportExternalSymbolsHint;
             const auto file =
                     stringutils::concat(libname, FCITX_LIBRARY_SUFFIX);
             const auto libraryPaths = standardPaths_.locateAll(

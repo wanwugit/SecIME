@@ -27,6 +27,7 @@ import com.google.android.material.snackbar.SnackbarContentLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
@@ -56,6 +57,7 @@ import splitties.views.dsl.core.withTheme
 class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
 
     private val service: FcitxInputMethodService by manager.inputMethodService()
+    private val inputDecisionBus: InputDecisionBus by manager.must()
     private val windowManager: InputWindowManager by manager.must()
     private val theme by manager.theme()
 
@@ -123,7 +125,7 @@ class ClipboardWindow : InputWindow.ExtendedInputWindow<ClipboardWindow>() {
             }
 
             override fun onPaste(entry: ClipboardEntry) {
-                service.commitText(entry.text)
+                inputDecisionBus.onCommitTextToApp(entry.text)
                 if (clipboardReturnAfterPaste) windowManager.attachWindow(KeyboardWindow)
             }
         }

@@ -7,14 +7,18 @@ package org.fcitx.fcitx5.android.input.candidates.floating
 
 import android.content.Context
 import android.graphics.Color
+import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.text.buildSpannedString
-import androidx.core.text.color
 import org.fcitx.fcitx5.android.core.FcitxEvent
 import org.fcitx.fcitx5.android.data.theme.Theme
 import splitties.views.backgroundColor
 import splitties.views.dsl.core.Ui
+import splitties.views.dsl.core.add
+import splitties.views.dsl.core.lParams
+import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.textView
+import splitties.views.dsl.core.wrapContent
+import splitties.views.gravityCenter
 
 class LabeledCandidateItemUi(
     override val ctx: Context,
@@ -22,21 +26,37 @@ class LabeledCandidateItemUi(
     setupTextView: TextView.() -> Unit
 ) : Ui {
 
-    override val root = textView {
+    private val commentView = textView {
         setupTextView(this)
+        textSize = textSize * 0.7f
+        isSingleLine = true
+        gravity = gravityCenter
+    }
+
+    private val mainView = textView {
+        setupTextView(this)
+        isSingleLine = true
+        gravity = gravityCenter
+    }
+
+    override val root = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = gravityCenter
+        add(commentView, lParams(wrapContent, wrapContent))
+        add(mainView, lParams(wrapContent, wrapContent))
     }
 
     fun update(candidate: FcitxEvent.Candidate, active: Boolean) {
-        val labelFg = if (active) theme.genericActiveForegroundColor else theme.candidateLabelColor
         val fg = if (active) theme.genericActiveForegroundColor else theme.candidateTextColor
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
-        root.text = buildSpannedString {
-            color(labelFg) { append(candidate.label) }
-            color(fg) { append(candidate.text) }
-            if (candidate.comment.isNotBlank()) {
-                append(" ")
-                color(altFg) { append(candidate.comment) }
-            }
+        mainView.setTextColor(fg)
+        mainView.text = candidate.text
+        if (candidate.comment.isNotBlank()) {
+            commentView.visibility = LinearLayout.VISIBLE
+            commentView.setTextColor(altFg)
+            commentView.text = candidate.comment
+        } else {
+            commentView.visibility = LinearLayout.GONE
         }
         val bg = if (active) theme.genericActiveBackgroundColor else Color.TRANSPARENT
         root.backgroundColor = bg

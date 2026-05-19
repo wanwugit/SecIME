@@ -63,9 +63,7 @@ class FcitxRemoteService : Service() {
         override fun getPid(): Int = Process.myPid()
 
         override fun getLoadedPlugins(): MutableMap<String, String> =
-            DataManager.getLoadedPlugins().map {
-                it.packageName to it.versionName
-            }.let { mutableMapOf<String, String>().apply { putAll(it) } }
+            mutableMapOf() // No plugins — Rime is embedded
 
         override fun restartFcitx() {
             FcitxDaemon.restartFcitx()

@@ -8,7 +8,6 @@ import android.view.inputmethod.EditorInfo
 import androidx.annotation.DrawableRes
 import org.fcitx.fcitx5.android.core.Action
 import org.fcitx.fcitx5.android.core.CapabilityFlags
-import org.fcitx.fcitx5.android.core.FcitxEvent.CandidateListEvent
 import org.fcitx.fcitx5.android.core.FcitxEvent.InputPanelEvent
 import org.fcitx.fcitx5.android.core.FormattedText
 import org.fcitx.fcitx5.android.core.InputMethodEntry
@@ -26,8 +25,6 @@ interface InputBroadcastReceiver {
     fun onInputPanelUpdate(data: InputPanelEvent.Data) {}
 
     fun onImeUpdate(ime: InputMethodEntry) {}
-
-    fun onCandidateUpdate(data: CandidateListEvent.Data) {}
 
     fun onStatusAreaUpdate(actions: Array<Action>) {}
 

@@ -18,6 +18,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "fcitx5-android"
 
+includeBuild("../secureime")
+
 include(":lib:common")
 include(":lib:fcitx5")
 include(":lib:fcitx5-lua")
@@ -26,6 +28,7 @@ include(":lib:fcitx5-chinese-addons")
 include(":codegen")
 include(":app")
 include(":lib:plugin-base")
+include(":lib:rime-bridge")
 include(":plugin:anthy")
 include(":plugin:clipboard-filter")
 include(":plugin:unikey")

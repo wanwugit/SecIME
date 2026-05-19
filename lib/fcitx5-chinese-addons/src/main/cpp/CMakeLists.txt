@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
 
+# Host tools (gettext/msgfmt) may be installed via msys64 on Windows
+if(CMAKE_HOST_WIN32)
+    list(APPEND CMAKE_PROGRAM_PATH "C:/msys64/ucrt64/bin")
+endif()
+
 project(fcitx5-android-lib-fcitx5-chinese-addons VERSION ${VERSION_NAME})
 
 # For reproducible build

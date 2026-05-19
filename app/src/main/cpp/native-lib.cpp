@@ -42,6 +42,7 @@
 
 #include "androidaddonloader/androidaddonloader.h"
 #include "androidfrontend/androidfrontend_public.h"
+#include <dlfcn.h>
 #include "jni-utils.h"
 #include "nativestreambuf.h"
 #include "helper-types.h"
@@ -455,6 +456,53 @@ public:
         p_dispatcher->schedule(nullptr);
     }
 
+    // Rime direct API — uses dlsym to call bridge functions in rime module
+    using RimeSelectSchemaFn = void(*)(fcitx::Instance*, fcitx::InputContext*, const char*);
+    using RimeSetAsciiModeFn = void(*)(fcitx::Instance*, fcitx::InputContext*, bool);
+    using RimeToggleAsciiModeFn = void(*)(fcitx::Instance*, fcitx::InputContext*);
+    using RimeIsAsciiModeFn = bool(*)(fcitx::Instance*, fcitx::InputContext*);
+    using RimeCurrentSchemaFn = const char*(*)(fcitx::Instance*, fcitx::InputContext*);
+
+    void rimeSelectSchema(const std::string &schemaId) {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return;
+        static auto fn = (RimeSelectSchemaFn)dlsym(RTLD_DEFAULT, "fcitx_rime_select_schema");
+        if (!fn) return;
+        fn(p_instance.get(), ic, schemaId.c_str());
+    }
+
+    void rimeSetAsciiMode(bool asciiMode) {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return;
+        static auto fn = (RimeSetAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_set_ascii_mode");
+        if (!fn) return;
+        fn(p_instance.get(), ic, asciiMode);
+    }
+
+    void rimeToggleAsciiMode() {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return;
+        static auto fn = (RimeToggleAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_toggle_ascii_mode");
+        if (!fn) return;
+        fn(p_instance.get(), ic);
+    }
+
+    bool rimeIsAsciiMode() {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return false;
+        static auto fn = (RimeIsAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_is_ascii_mode");
+        if (!fn) return false;
+        return fn(p_instance.get(), ic);
+    }
+
+    std::string rimeCurrentSchema() {
+        auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
+        if (!ic) return "";
+        static auto fn = (RimeCurrentSchemaFn)dlsym(RTLD_DEFAULT, "fcitx_rime_current_schema");
+        if (!fn) return "";
+        return fn(p_instance.get(), ic);
+    }
+
 private:
     std::unique_ptr<fcitx::Instance> p_instance;
     std::unique_ptr<fcitx::EventDispatcher> p_dispatcher;
@@ -580,6 +628,7 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_startupFcitx(
     fcitx::registerDomain("fcitx5-lua", locale_dir_char);
     fcitx::registerDomain("fcitx5-chinese-addons", locale_dir_char);
     fcitx::registerDomain("fcitx5-android", locale_dir_char);
+    fcitx::registerDomain("fcitx5-rime", locale_dir_char);
 
     const int extDomainsSize = env->GetArrayLength(extDomains);
     for (int i = 0; i < extDomainsSize; i++) {
@@ -1270,6 +1319,41 @@ Java_org_fcitx_fcitx5_android_utils_Ini_writeAsIni(JNIEnv *env, jclass clazz, js
     auto config = jobjectToRawConfig(env, value);
     fcitx::writeAsIni(config, fp);
     std::fclose(fp);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_jniRimeSelectSchema(JNIEnv *env, jclass, jstring schemaId) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().rimeSelectSchema(CString(env, schemaId));
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_jniRimeSetAsciiMode(JNIEnv *, jclass, jboolean asciiMode) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().rimeSetAsciiMode(asciiMode == JNI_TRUE);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_jniRimeToggleAsciiMode(JNIEnv *, jclass) {
+    RETURN_IF_NOT_RUNNING
+    Fcitx::Instance().rimeToggleAsciiMode();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_jniRimeIsAsciiMode(JNIEnv *, jclass) {
+    RETURN_VALUE_IF_NOT_RUNNING(false)
+    return Fcitx::Instance().rimeIsAsciiMode() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_org_fcitx_fcitx5_android_core_Fcitx_jniRimeCurrentSchema(JNIEnv *env, jclass) {
+    RETURN_VALUE_IF_NOT_RUNNING(env->NewStringUTF(""))
+    return env->NewStringUTF(Fcitx::Instance().rimeCurrentSchema().c_str());
 }
 
 #pragma GCC diagnostic pop

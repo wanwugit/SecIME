@@ -6,6 +6,7 @@ package org.fcitx.fcitx5.android.input.bar
 
 import android.graphics.Color
 import android.os.Build
+import org.fcitx.fcitx5.android.input.SecLogger
 import android.util.Size
 import android.view.KeyEvent
 import android.view.View
@@ -20,6 +21,8 @@ import android.widget.inline.InlineContentView
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -28,7 +31,6 @@ import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlag
 import org.fcitx.fcitx5.android.core.CapabilityFlags
-import org.fcitx.fcitx5.android.core.FcitxEvent.CandidateListEvent
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
@@ -47,6 +49,7 @@ import org.fcitx.fcitx5.android.input.bar.ui.CandidateUi
 import org.fcitx.fcitx5.android.input.bar.ui.IdleUi
 import org.fcitx.fcitx5.android.input.bar.ui.TitleUi
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
 import org.fcitx.fcitx5.android.input.candidates.expanded.window.FlexboxExpandedCandidateWindow
 import org.fcitx.fcitx5.android.input.candidates.expanded.window.GridExpandedCandidateWindow
@@ -60,6 +63,8 @@ import org.fcitx.fcitx5.android.input.editing.TextEditingWindow
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
+import org.fcitx.fcitx5.android.input.keyboard.T9Keyboard
+import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
 import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import org.fcitx.fcitx5.android.input.status.StatusAreaWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindow
@@ -95,6 +100,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val horizontalCandidate: HorizontalCandidateComponent by manager.must()
     private val commonKeyActionListener: CommonKeyActionListener by manager.must()
     private val popup: PopupComponent by manager.must()
+    private val inputDecisionBus: InputDecisionBus by manager.must()
+    private val keyboardWindow: KeyboardWindow by manager.must()
 
     private val prefs = AppPrefs.getInstance()
 
@@ -301,6 +308,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 onGestureListener = swipeHideKeyboardCallback
             }
             buttonsUi.apply {
+                keyboardModeButton.setOnClickListener {
+                    showKeyboardModePicker()
+                }
                 undoButton.setOnClickListener {
                     service.sendCombinationKeyEvents(KeyEvent.KEYCODE_Z, ctrl = true)
                 }
@@ -320,7 +330,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
                     ClipboardManager.lastEntry?.let {
-                        service.commitText(it.text)
+                        inputDecisionBus.onCommitTextToApp(it.text)
                     }
                     clipboardTimeoutJob?.cancel()
                     clipboardTimeoutJob = null
@@ -439,6 +449,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         ClipboardManager.addOnUpdateListener(onClipboardUpdateListener)
         clipboardSuggestion.registerOnChangeListener(onClipboardSuggestionUpdateListener)
         clipboardItemTimeout.registerOnChangeListener(onClipboardTimeoutUpdateListener)
+        onKeyboardModeChanged(keyboardWindow.isT9Active())
     }
 
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {
@@ -465,8 +476,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         barStateMachine.push(PreeditUpdated, PreeditEmpty to empty)
     }
 
-    override fun onCandidateUpdate(data: CandidateListEvent.Data) {
-        barStateMachine.push(CandidatesUpdated, CandidateEmpty to data.candidates.isEmpty())
+    fun startCollectingCandidatePipeline(scope: CoroutineScope) {
+        scope.launch(Dispatchers.Main) {
+            inputDecisionBus.candidatePipeline.state.collect { state ->
+                barStateMachine.push(CandidatesUpdated, CandidateEmpty to state.candidates.isEmpty())
+            }
+        }
     }
 
     override fun onWindowAttached(window: InputWindow) {
@@ -551,8 +566,43 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     fun onKeyboardLayoutSwitched(isNumber: Boolean) {
+        SecLogger.d("Bar", "Bar.onKeyboardLayoutSwitched: isNumber=$isNumber")
         isKeyboardLayoutNumber = isNumber
         evalIdleUiState()
+    }
+
+    fun onKeyboardModeChanged(isT9: Boolean) {
+        SecLogger.d("Bar", "Bar.onKeyboardModeChanged: isT9=$isT9")
+        idleUi.buttonsUi.keyboardModeButton.setIcon(
+            if (isT9) R.drawable.ic_baseline_keyboard_24 else R.drawable.ic_dialpad
+        )
+        idleUi.buttonsUi.keyboardModeButton.contentDescription = context.getString(
+            if (isT9) R.string.switch_to_qwerty else R.string.switch_to_t9
+        )
+    }
+
+    private fun showKeyboardModePicker() {
+        val isT9 = keyboardWindow.isT9Active()
+        val items = arrayOf(
+            context.getString(R.string.switch_to_t9),
+            context.getString(R.string.switch_to_qwerty)
+        )
+        val checkedItem = if (isT9) 0 else 1
+        lateinit var dialog: android.app.AlertDialog
+        dialog = android.app.AlertDialog.Builder(context)
+            .setTitle(context.getString(R.string.switch_keyboard_mode))
+            .setSingleChoiceItems(items, checkedItem) { _, which ->
+                val mode = when (which) {
+                    0 -> KeyboardWindow.KeyboardMode.T9
+                    1 -> KeyboardWindow.KeyboardMode.QWERTY
+                    else -> KeyboardWindow.KeyboardMode.QWERTY
+                }
+                keyboardWindow.setKeyboardMode(mode)
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        service.showDialog(dialog)
     }
 
 }

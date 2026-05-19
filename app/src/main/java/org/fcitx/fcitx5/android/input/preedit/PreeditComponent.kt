@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: LGPL-2.1-or-later
- * SPDX-FileCopyrightText: Copyright 2021-2023 Fcitx5 for Android Contributors
+ * SPDX-FileCopyrightText: Copyright 2021-2025 Fcitx5 for Android Contributors
  */
 package org.fcitx.fcitx5.android.input.preedit
 
@@ -33,14 +33,17 @@ class PreeditComponent : UniqueComponent<PreeditComponent>(), Dependent, InputBr
             backgroundColor = bkgColor
             horizontalPadding = dp(8)
         }).apply {
-            // TODO make it customizable
             root.alpha = 0.8f
             root.visibility = View.INVISIBLE
         }
     }
 
-    override fun onInputPanelUpdate(data: FcitxEvent.InputPanelEvent.Data) {
+    private fun render(data: FcitxEvent.InputPanelEvent.Data) {
         ui.update(data)
         ui.root.visibility = if (ui.visible) View.VISIBLE else View.INVISIBLE
+    }
+
+    override fun onInputPanelUpdate(data: FcitxEvent.InputPanelEvent.Data) {
+        render(data)
     }
 }

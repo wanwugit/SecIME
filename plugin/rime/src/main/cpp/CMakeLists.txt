@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
 
+# Host tools (gettext/msgfmt) may be installed via msys64 on Windows
+if(CMAKE_HOST_WIN32)
+    list(APPEND CMAKE_PROGRAM_PATH "C:/msys64/ucrt64/bin")
+endif()
+
 project(fcitx5-android-plugin-rime VERSION ${VERSION_NAME})
 
 # For reproducible build
@@ -41,19 +46,38 @@ add_subdirectory(fcitx5-rime)
 
 install(FILES
         "default.yaml"
-        "rime-essay/essay.txt"
-        "rime-prelude/key_bindings.yaml"
-        "rime-prelude/punctuation.yaml"
-        "rime-prelude/symbols.yaml"
-        "rime-luna-pinyin/luna_pinyin_fluency.schema.yaml"
-        "rime-luna-pinyin/luna_pinyin_simp.schema.yaml"
-        "rime-luna-pinyin/luna_pinyin_tw.schema.yaml"
-        "rime-luna-pinyin/luna_pinyin.dict.yaml"
-        "rime-luna-pinyin/luna_pinyin.schema.yaml"
-        "rime-luna-pinyin/luna_quanpin.schema.yaml"
-        "rime-luna-pinyin/pinyin.yaml"
-        "rime-stroke/stroke.dict.yaml"
-        "rime-stroke/stroke.schema.yaml"
+        "rime_frost.schema.yaml"
+        "rime_frost.dict.yaml"
+        "rime_frost_t9.schema.yaml"
+        "rime_frost_aux.dict.yaml"
+        "rime_frost_aux.schema.yaml"
+        "melt_eng.dict.yaml"
+        "melt_eng.schema.yaml"
+        "melt_eng_t9.schema.yaml"
+        "radical_pinyin.dict.yaml"
+        "radical_pinyin.schema.yaml"
+        "zh-moqi.gram"
+        "essay.txt"
+        "key_bindings.yaml"
+        "punctuation.yaml"
+        "symbols_v.yaml"
+        "custom_phrase.txt"
         DESTINATION "${FCITX_INSTALL_DATADIR}/rime-data"
         COMPONENT prebuilt-assets
         )
+
+install(DIRECTORY "cn_dicts/" DESTINATION "${FCITX_INSTALL_DATADIR}/rime-data/cn_dicts"
+        COMPONENT prebuilt-assets
+        FILES_MATCHING PATTERN "*.dict.yaml")
+
+install(DIRECTORY "en_dicts/" DESTINATION "${FCITX_INSTALL_DATADIR}/rime-data/en_dicts"
+        COMPONENT prebuilt-assets
+        FILES_MATCHING PATTERN "*")
+
+install(DIRECTORY "lua/" DESTINATION "${FCITX_INSTALL_DATADIR}/rime-data/lua"
+        COMPONENT prebuilt-assets
+        FILES_MATCHING PATTERN "*.lua")
+
+install(DIRECTORY "opencc/" DESTINATION "${FCITX_INSTALL_DATADIR}/rime-data/opencc"
+        COMPONENT prebuilt-assets
+        FILES_MATCHING PATTERN "*")

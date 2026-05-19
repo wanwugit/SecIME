@@ -1,0 +1,13 @@
+# Force LF line endings for Rime data files
+# CRLF can cause parsing issues on Android/Linux
+*.yaml text eol=lf
+*.txt text eol=lf
+*.dict.yaml text eol=lf
+*.lua text eol=lf
+*.json text eol=lf
+*.gram binary
+*.ocd2 binary
+*.bin binary
+*.prism.bin binary
+*.table.bin binary
+*.reverse.bin binary

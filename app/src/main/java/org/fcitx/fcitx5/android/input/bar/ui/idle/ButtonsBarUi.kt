@@ -28,6 +28,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         root.addView(it, FlexboxLayout.LayoutParams(size, size))
     }
 
+    val keyboardModeButton = toolButton(R.drawable.ic_dialpad).apply {
+        contentDescription = ctx.getString(R.string.switch_keyboard_mode)
+    }
+
     val undoButton = toolButton(R.drawable.ic_baseline_undo_24).apply {
         contentDescription = ctx.getString(R.string.undo)
     }

@@ -40,4 +40,22 @@ sealed class KeyAction {
     data class PickerSwitchAction(val key: PickerWindow.Key? = null) : KeyAction()
 
     data object SpaceLongPressAction : KeyAction()
+
+    data class T9DigitAction(val digit: String) : KeyAction()
+
+    data class T9CandidateSelectAction(val index: Int) : KeyAction()
+
+    data object T9ResetAction : KeyAction()
+
+    data class T9CommitAction(val text: String) : KeyAction()
+
+    data object T9SegmentAction : KeyAction()
+
+    data object T9ZeroAction : KeyAction()
+
+    data object T9BackspaceAction : KeyAction()
+
+    data object T9SpaceAction : KeyAction()
+
+    data object T9EnterAction : KeyAction()
 }

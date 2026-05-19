@@ -108,4 +108,11 @@ interface FcitxAPI {
     suspend fun setCandidatePagingMode(mode: Int)
     suspend fun offsetCandidatePage(delta: Int)
 
+    // Rime direct API
+    suspend fun rimeSelectSchema(schemaId: String)
+    suspend fun rimeSetAsciiMode(asciiMode: Boolean)
+    suspend fun rimeToggleAsciiMode()
+    suspend fun rimeIsAsciiMode(): Boolean
+    suspend fun rimeCurrentSchema(): String
+
 }

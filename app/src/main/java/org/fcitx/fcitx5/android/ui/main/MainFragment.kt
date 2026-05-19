@@ -86,9 +86,9 @@ class MainFragment : PaddingPreferenceFragment() {
                     SettingsRoute.Symbol
                 )
                 addDestinationPreference(
-                    R.string.plugins,
-                    R.drawable.ic_baseline_android_24,
-                    SettingsRoute.Plugin
+                    R.string.nine_key,
+                    R.drawable.ic_baseline_keyboard_24,
+                    SettingsRoute.NineKey
                 )
                 addDestinationPreference(
                     R.string.advanced,

@@ -1,0 +1,1 @@
+-- Rime Lua component registration

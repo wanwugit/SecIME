@@ -318,4 +318,15 @@
     <string name="key_border_stroke">Enable stroke for key border</string>
     <string name="preferred_voice_input">Preferred voice input</string>
     <string name="edit_text_playground">EditText Playground</string>
+    <string name="nine_key">Nine Key (T9)</string>
+    <string name="nine_key_enabled">Enable Nine Key keyboard</string>
+    <string name="nine_key_beam_width">Beam search width</string>
+    <string name="nine_key_auto_switch">Auto switch to Nine Key for Chinese IME</string>
+    <string name="nine_key_security_filters">Security filters</string>
+    <string name="nine_key_digit_only_filter">Digit only filter (secure mode)</string>
+    <string name="nine_key_placeholder_encryption">Placeholder encryption filter</string>
+    <string name="switch_to_nine_key">T9</string>
+    <string name="switch_keyboard_mode">Switch keyboard mode</string>
+    <string name="switch_to_qwerty">26-key keyboard</string>
+    <string name="switch_to_t9">9-key T9</string>
 </resources>

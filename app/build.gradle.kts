@@ -27,7 +27,9 @@ android {
                     // android specific modules
                     "androidfrontend",
                     "androidkeyboard",
-                    "androidnotification"
+                    "androidnotification",
+                    // rime addon (embedded)
+                    "rime"
                 )
             }
         }
@@ -83,6 +85,7 @@ dependencies {
     implementation(project(":lib:libime"))
     implementation(project(":lib:fcitx5-chinese-addons"))
     implementation(project(":lib:common"))
+    implementation("org.secureime:secureime")
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.activity)

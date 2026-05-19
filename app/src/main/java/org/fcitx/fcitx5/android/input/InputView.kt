@@ -26,6 +26,7 @@ import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceProvider
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
+import org.fcitx.fcitx5.android.input.SecLogger
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcaster
 import org.fcitx.fcitx5.android.input.broadcast.PreeditEmptyStateComponent
 import org.fcitx.fcitx5.android.input.broadcast.PunctuationComponent
@@ -40,6 +41,12 @@ import org.fcitx.fcitx5.android.input.popup.PopupComponent
 import org.fcitx.fcitx5.android.input.preedit.PreeditComponent
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.unset
+import org.fcitx.fcitx5.android.input.bus.LanguageAdapterComponent
+import org.fcitx.fcitx5.android.input.bus.CandidateViewAdapter
+import org.fcitx.fcitx5.android.input.bus.PreeditViewAdapter
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.mechdancer.dependency.DynamicScope
 import org.mechdancer.dependency.manager.wrapToUniqueComponent
 import org.mechdancer.dependency.plusAssign
@@ -101,9 +108,19 @@ class InputView(
     private val preeditEmptyState = PreeditEmptyStateComponent()
     private val preedit = PreeditComponent()
     private val commonKeyActionListener = CommonKeyActionListener()
+    private val languageAdapter = LanguageAdapterComponent()
+    val inputDecisionBus = InputDecisionBus()
     private val windowManager = InputWindowManager()
     private val kawaiiBar = KawaiiBarComponent()
     private val horizontalCandidate = HorizontalCandidateComponent()
+    private val candidateViewAdapter = CandidateViewAdapter(
+        inputDecisionBus.candidatePipeline,
+        horizontalCandidate
+    )
+    private val preeditViewAdapter = PreeditViewAdapter(
+        inputDecisionBus.preeditPipeline
+    )
+    private val uiScope = CoroutineScope(Dispatchers.Main)
     private val keyboardWindow = KeyboardWindow()
     private val symbolPicker = symbolPicker()
     private val emojiPicker = emojiPicker()
@@ -122,7 +139,10 @@ class InputView(
         scope += preeditEmptyState
         scope += preedit
         scope += commonKeyActionListener
+        scope += languageAdapter
+        scope += inputDecisionBus
         scope += windowManager
+        scope += keyboardWindow
         scope += kawaiiBar
         scope += horizontalCandidate
         broadcaster.onScopeSetupFinished(scope)
@@ -202,6 +222,10 @@ class InputView(
         windowManager.attachWindow(KeyboardWindow)
 
         broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
+
+        candidateViewAdapter.startCollecting(uiScope)
+        preeditViewAdapter.startCollecting(uiScope)
+        kawaiiBar.startCollectingCandidatePipeline(uiScope)
 
         customBackground.imageDrawable = theme.backgroundDrawable(keyBorder)
 
@@ -332,17 +356,26 @@ class InputView(
     override fun handleFcitxEvent(it: FcitxEvent<*>) {
         when (it) {
             is FcitxEvent.CandidateListEvent -> {
-                broadcaster.onCandidateUpdate(it.data)
+                SecLogger.d("InputView", "CandidateListEvent: candidates=${it.data.candidates.toList()}, total=${it.data.total}")
+                inputDecisionBus.onFcitxCandidateEvent(it.data.candidates, it.data.total)
             }
             is FcitxEvent.ClientPreeditEvent -> {
+                SecLogger.d("InputView", "ClientPreeditEvent: ${it.data}")
                 preeditEmptyState.updatePreeditEmptyState(clientPreedit = it.data)
                 broadcaster.onClientPreeditUpdate(it.data)
             }
             is FcitxEvent.InputPanelEvent -> {
+                SecLogger.d("InputView", "InputPanelEvent: preedit='${it.data.preedit}', auxUp='${it.data.auxUp}', auxDown='${it.data.auxDown}'")
                 preeditEmptyState.updatePreeditEmptyState(preedit = it.data.preedit)
                 broadcaster.onInputPanelUpdate(it.data)
+                inputDecisionBus.onFcitxPreeditEvent(
+                    it.data.preedit.toString(),
+                    if (it.data.auxUp.isNotEmpty()) it.data.auxUp.toString() else "",
+                    if (it.data.auxDown.isNotEmpty()) it.data.auxDown.toString() else ""
+                )
             }
             is FcitxEvent.IMChangeEvent -> {
+                SecLogger.d("InputView", "IMChangeEvent: ${it.data}")
                 broadcaster.onImeUpdate(it.data)
             }
             is FcitxEvent.StatusAreaEvent -> {

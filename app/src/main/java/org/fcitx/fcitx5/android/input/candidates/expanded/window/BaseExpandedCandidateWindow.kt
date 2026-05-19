@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.bar.ExpandButtonStateMachine.BooleanKey.ExpandedCandidatesEmpty
 import org.fcitx.fcitx5.android.input.bar.ExpandButtonStateMachine.TransitionEvent.ExpandedCandidatesAttached
@@ -23,6 +22,7 @@ import org.fcitx.fcitx5.android.input.bar.ExpandButtonStateMachine.TransitionEve
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver
 import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
+import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
 import org.fcitx.fcitx5.android.input.candidates.expanded.CandidatesPagingSource
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateLayout
@@ -49,6 +49,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
     protected val theme by manager.theme()
     protected val fcitx by manager.fcitx()
     protected val inputView by manager.inputView()
+    private val inputDecisionBus: InputDecisionBus by manager.must()
     private val commonKeyActionListener: CommonKeyActionListener by manager.must()
     private val bar: KawaiiBarComponent by manager.must()
     private val horizontalCandidate: HorizontalCandidateComponent by manager.must()
@@ -86,6 +87,12 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
                 ExpandedCandidateLayout.Keyboard.UpBtnLabel -> prevPage()
                 ExpandedCandidateLayout.Keyboard.DownBtnLabel -> nextPage()
             }
+        } else if (it is KeyAction.FcitxKeyAction) {
+            inputDecisionBus.onQwertyKey(it.act, it.states.states.toInt(), it.code)
+        } else if (it is KeyAction.SymAction) {
+            inputDecisionBus.onQwertyKeySym(it.sym.sym, it.states.states.toInt())
+        } else if (it is KeyAction.CommitAction) {
+            inputDecisionBus.onCommitTextToApp(it.text)
         } else {
             commonKeyActionListener.listener.onKeyAction(it, source)
         }
@@ -142,7 +149,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
 
     fun bindCandidateUiViewHolder(holder: CandidateViewHolder) {
         holder.itemView.setOnClickListener {
-            fcitx.launchOnReady { it.select(holder.idx) }
+            inputDecisionBus.onUiCandidateSelect(holder.idx)
         }
         holder.itemView.setOnLongClickListener {
             inputView.showCandidateActionMenu(holder.idx, holder.text, holder.ui.root)

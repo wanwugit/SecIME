@@ -44,6 +44,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
@@ -81,7 +82,7 @@ import kotlin.math.max
 
 class FcitxInputMethodService : LifecycleInputMethodService() {
 
-    private lateinit var fcitx: FcitxConnection
+    internal lateinit var fcitx: FcitxConnection
 
     private var jobs = Channel<Job>(capacity = Channel.UNLIMITED)
 
@@ -162,6 +163,13 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         contentView.addView(newCandidatesView)
         inputDeviceMgr.setCandidatesView(newCandidatesView)
         candidatesView = newCandidatesView
+        // route candidate selection through InputDecisionBus
+        newCandidatesView.onCandidateSelect = { index ->
+            inputView?.inputDecisionBus?.onUiCandidateSelect(index)
+        }
+        newCandidatesView.onCandidatePageOffset = { offset ->
+            inputView?.inputDecisionBus?.onUiCandidatePageOffset(offset)
+        }
         return newCandidatesView
     }
 
@@ -202,6 +210,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onCreate() {
+        SecLogger.init(this)
         fcitx = FcitxDaemon.connect(javaClass.name)
         lifecycleScope.launch {
             jobs.consumeEach { it.join() }
@@ -222,10 +231,35 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 SubtypeManager.syncWith(enabledIme())
             }
         }
+        postFcitxJob {
+            forceRimeEngine()
+        }
         super.onCreate()
         decorView = window.window!!.decorView
         contentView = decorView.findViewById(android.R.id.content)
         lastKnownConfig = resources.configuration
+    }
+
+    private suspend fun FcitxAPI.forceRimeEngine() {
+        // Step 1: disable pinyin addon at daemon level
+        setAddonState(arrayOf("pinyin"), booleanArrayOf(false))
+        // Step 2: enable rime addon at daemon level
+        // setAddonState calls reloadConfig(), which loads/unloads addons
+        setAddonState(arrayOf("rime"), booleanArrayOf(true))
+
+        // Step 3: wait for rime addon to load, then set enabled input methods
+        for (i in 0..15) {
+            val rimeEntries = availableIme().filter { it.addon.equals("rime", ignoreCase = true) }
+            if (rimeEntries.isNotEmpty()) {
+                setEnabledIme(rimeEntries.map { it.uniqueName }.toTypedArray())
+                // Step 4: activate rime as current input method
+                activateIme(rimeEntries.first().uniqueName)
+                Timber.d("ForceRime", "Rime engine forced: entries=${rimeEntries.map { it.uniqueName }}")
+                return
+            }
+            delay(100)
+        }
+        Timber.e("ForceRime", "No rime IME entries found after 1.5s!")
     }
 
     private fun handleFcitxEvent(event: FcitxEvent<*>) {
