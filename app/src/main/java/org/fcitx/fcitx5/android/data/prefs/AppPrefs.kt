@@ -258,7 +258,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.expanded_candidate_grid_span_count,
                 R.string.portrait,
                 "expanded_candidate_grid_span_count_portrait",
-                6,
+                5,
                 R.string.landscape,
                 "expanded_candidate_grid_span_count_landscape",
                 8,
@@ -365,6 +365,14 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         )
     }
 
+    inner class Secure : ManagedPreferenceInternal(sharedPreferences) {
+        val lockState = string("lock_state", "UNLOCKED")
+        val encryptMode = string("encrypt_mode", "CODEBOOK")
+        val selectedContactIds = string("selected_contact_ids", "")
+        val codebookId = string("codebook_id", "default")
+        val bufferContent = string("buffer_content", "")
+    }
+
     inner class NineKey : ManagedPreferenceCategory(R.string.nine_key, sharedPreferences) {
         val nineKeyEnabled = switch(R.string.nine_key_enabled, "nine_key_enabled", true)
         val nineKeyBeamWidth = int(
@@ -410,6 +418,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     val candidates = Candidates().register()
     val clipboard = Clipboard().register()
     val symbols = Symbols().register()
+    val secure = Secure().register()
     val nineKey = NineKey().register()
     val advanced = Advanced().register()
 
