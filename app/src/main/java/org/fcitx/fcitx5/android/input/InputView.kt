@@ -259,26 +259,26 @@ class InputView(
                 centerVertically()
                 centerHorizontally()
             })
-            add(kawaiiBar.view, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
+            add(encryptionBar.view, lParams(matchParent, dp(EncryptionBarComponent.HEIGHT)) {
                 topOfParent()
                 centerHorizontally()
             })
-            add(encryptionBar.view, lParams(matchParent, dp(EncryptionBarComponent.HEIGHT)) {
-                below(kawaiiBar.view)
+            add(kawaiiBar.view, lParams(matchParent, dp(KawaiiBarComponent.HEIGHT)) {
+                below(encryptionBar.view)
                 centerHorizontally()
             })
             add(leftPaddingSpace, lParams {
-                below(encryptionBar.view)
+                below(kawaiiBar.view)
                 startOfParent()
                 bottomOfParent()
             })
             add(rightPaddingSpace, lParams {
-                below(encryptionBar.view)
+                below(kawaiiBar.view)
                 endOfParent()
                 bottomOfParent()
             })
             add(windowManager.view, lParams {
-                below(encryptionBar.view)
+                below(kawaiiBar.view)
                 above(bottomPaddingSpace)
                 /**
                  * set start and end constrain in [updateKeyboardSize]

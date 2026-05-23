@@ -17,6 +17,7 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.popup.PopupAction
+import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import splitties.views.imageResource
 
 @SuppressLint("ViewConstructor")
@@ -66,11 +67,12 @@ class TextKeyboard(
                 BackspaceKey()
             ),
             listOf(
-                LayoutSwitchKey("?123", ""),
-                CommaKey(0.1f, KeyDef.Appearance.Variant.Alternative),
-                LanguageKey(),
+                TextPickerSwitchKey("符", PickerWindow.Key.Symbol, 0.15f, KeyDef.Appearance.Variant.Alternative),
+                LayoutSwitchKey("123", NumberKeyboard.Name, 0.10f, KeyDef.Appearance.Variant.Alternative),
+                CommaKey(0.10f, KeyDef.Appearance.Variant.Alternative),
                 SpaceKey(),
-                SymbolKey(".", 0.1f, KeyDef.Appearance.Variant.Alternative),
+                SymbolKey(".", 0.10f, KeyDef.Appearance.Variant.Alternative),
+                LanguageKey(),
                 ReturnKey()
             )
         )
@@ -79,7 +81,7 @@ class TextKeyboard(
     val caps: ImageKeyView by lazy { findViewById(R.id.button_caps) }
     val backspace: ImageKeyView by lazy { findViewById(R.id.button_backspace) }
     val quickphrase: ImageKeyView by lazy { findViewById(R.id.button_quickphrase) }
-    val lang: ImageKeyView by lazy { findViewById(R.id.button_lang) }
+    val lang: TextKeyView by lazy { findViewById(R.id.button_lang) }
     val space: TextKeyView by lazy { findViewById(R.id.button_space) }
     val `return`: ImageKeyView by lazy { findViewById(R.id.button_return) }
 
@@ -165,13 +167,15 @@ class TextKeyboard(
     }
 
     override fun onInputMethodUpdate(ime: InputMethodEntry) {
-        space.mainText.text = buildString {
-            append(ime.displayName)
-            ime.subMode.run { label.ifEmpty { name.ifEmpty { null } } }?.let { append(" ($it)") }
-        }
+        updateLangKey(ime)
         if (capsState != CapsState.None) {
             switchCapsState()
         }
+    }
+
+    private fun updateLangKey(ime: InputMethodEntry) {
+        val isChinese = ime.languageCode.startsWith("zh")
+        lang.mainText.text = if (isChinese) "中" else "EN"
     }
 
     private fun transformPopupPreview(c: String): String {

@@ -11,7 +11,8 @@ import org.fcitx.fcitx5.android.data.InputFeedbacks
 open class KeyDef(
     val appearance: Appearance,
     val behaviors: Set<Behavior>,
-    val popup: Array<Popup>? = null
+    val popup: Array<Popup>? = null,
+    val rowSpan: Int = 1
 ) {
     sealed class Appearance(
         val percentWidth: Float,

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Fcitx5</string>
-    <string name="app_name_debug">Fcitx5 (Debug)</string>
+    <string name="app_name_release">隐言输入法</string>
+    <string name="app_name_debug">隐言输入法 (Debug)</string>
     <string name="save">Save</string>
     <string name="input_methods">Input Methods</string>
     <string name="add_input_method">Add Input Method</string>
@@ -326,7 +326,22 @@
     <string name="nine_key_digit_only_filter">Digit only filter (secure mode)</string>
     <string name="nine_key_placeholder_encryption">Placeholder encryption filter</string>
     <string name="switch_to_nine_key">T9</string>
-    <string name="switch_keyboard_mode">Switch keyboard mode</string>
-    <string name="switch_to_qwerty">26-key keyboard</string>
-    <string name="switch_to_t9">9-key T9</string>
+    <string name="switch_keyboard_mode">切换键盘模式</string>
+    <string name="switch_to_qwerty">26键拼音</string>
+    <string name="switch_to_t9">9键拼音</string>
+    <string name="security">Security</string>
+    <string name="friend_management">Friends</string>
+    <string name="template_management">Disguise Templates</string>
+    <string name="encryption_management">Encryption</string>
+    <string name="friend_user_id">User ID</string>
+    <string name="friend_remark">Remark</string>
+    <string name="friend_phone">Phone</string>
+    <string name="template_name">Template Name</string>
+    <string name="template_prefix">Prefix</string>
+    <string name="template_suffix">Suffix</string>
+    <string name="encrypt_mode">Encrypt Mode</string>
+    <string name="codebook_id">Codebook ID</string>
+    <string name="default_template">Default Template</string>
+    <string name="auto_encrypt">Auto Encrypt</string>
+    <string name="clipboard_auto_decrypt">Clipboard Auto Decrypt</string>
 </resources>

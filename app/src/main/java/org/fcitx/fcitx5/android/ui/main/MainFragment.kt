@@ -86,14 +86,26 @@ class MainFragment : PaddingPreferenceFragment() {
                     SettingsRoute.Symbol
                 )
                 addDestinationPreference(
-                    R.string.nine_key,
-                    R.drawable.ic_baseline_keyboard_24,
-                    SettingsRoute.NineKey
-                )
-                addDestinationPreference(
                     R.string.advanced,
                     R.drawable.ic_baseline_more_horiz_24,
                     SettingsRoute.Advanced
+                )
+            }
+            addCategory("安全") {
+                addDestinationPreference(
+                    R.string.friend_management,
+                    R.drawable.ic_person_24,
+                    SettingsRoute.FriendManagement
+                )
+                addDestinationPreference(
+                    R.string.template_management,
+                    R.drawable.ic_template_24,
+                    SettingsRoute.TemplateManagement
+                )
+                addDestinationPreference(
+                    R.string.encryption_management,
+                    R.drawable.ic_encryption_24,
+                    SettingsRoute.EncryptionManagement
                 )
             }
         }

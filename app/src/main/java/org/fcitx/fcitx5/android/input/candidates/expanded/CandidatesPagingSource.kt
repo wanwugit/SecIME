@@ -18,7 +18,10 @@ class CandidatesPagingSource(val fcitx: FcitxConnection, val total: Int, val off
         val pageSize = params.loadSize
         Timber.d("getCandidates(offset=$startIndex, limit=$pageSize)")
         val candidates = fcitx.runOnReady {
-            getCandidates(startIndex, pageSize)
+            getCandidates(startIndex, pageSize).mapNotNull { combined ->
+                val (text, comment) = org.secureime.sect9.bus.splitTextComment(combined)
+                if (org.secureime.sect9.bus.isPurePinyinCandidate(text, comment)) null else text
+            }
         }
         val prevKey = if (startIndex >= pageSize) startIndex - pageSize else null
         val nextKey = if (total > 0) {

@@ -32,6 +32,14 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.switch_keyboard_mode)
     }
 
+    val encryptLockButton = toolButton(R.drawable.ic_encrypt_lock_24).apply {
+        contentDescription = "加密"
+    }
+
+    val decryptLockButton = toolButton(R.drawable.ic_decrypt_lock_24).apply {
+        contentDescription = "解密"
+    }
+
     val undoButton = toolButton(R.drawable.ic_baseline_undo_24).apply {
         contentDescription = ctx.getString(R.string.undo)
     }
@@ -50,14 +58,6 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
 
     val moreButton = toolButton(R.drawable.ic_baseline_more_horiz_24).apply {
         contentDescription = ctx.getString(R.string.status_area)
-    }
-
-    val encryptLockButton = toolButton(R.drawable.ic_encrypt_lock_24).apply {
-        contentDescription = "加密"
-    }
-
-    val decryptLockButton = toolButton(R.drawable.ic_decrypt_lock_24).apply {
-        contentDescription = "解密"
     }
 
 }

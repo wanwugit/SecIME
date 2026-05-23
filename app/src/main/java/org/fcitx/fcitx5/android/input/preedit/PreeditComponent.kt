@@ -46,4 +46,8 @@ class PreeditComponent : UniqueComponent<PreeditComponent>(), Dependent, InputBr
     override fun onInputPanelUpdate(data: FcitxEvent.InputPanelEvent.Data) {
         render(data)
     }
+
+    fun updateFromT9(text: String) {
+        ui.updateFromT9(text)
+    }
 }

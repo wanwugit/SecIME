@@ -373,32 +373,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val bufferContent = string("buffer_content", "")
     }
 
-    inner class NineKey : ManagedPreferenceCategory(R.string.nine_key, sharedPreferences) {
-        val nineKeyEnabled = switch(R.string.nine_key_enabled, "nine_key_enabled", true)
-        val nineKeyBeamWidth = int(
-            R.string.nine_key_beam_width,
-            "nine_key_beam_width",
-            5,
-            1,
-            20,
-        ) { nineKeyEnabled.getValue() }
-        val nineKeyAutoSwitch = switch(
-            R.string.nine_key_auto_switch,
-            "nine_key_auto_switch",
-            false
-        ) { nineKeyEnabled.getValue() }
-        val digitOnlyFilter = switch(
-            R.string.nine_key_digit_only_filter,
-            "nine_key_digit_only_filter",
-            true
-        ) { nineKeyEnabled.getValue() }
-        val placeholderEncryptionFilter = switch(
-            R.string.nine_key_placeholder_encryption,
-            "nine_key_placeholder_encryption",
-            true
-        ) { nineKeyEnabled.getValue() }
-    }
-
+    
     private val providers = mutableListOf<ManagedPreferenceProvider>()
 
     fun <T : ManagedPreferenceProvider> registerProvider(
@@ -419,8 +394,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     val clipboard = Clipboard().register()
     val symbols = Symbols().register()
     val secure = Secure().register()
-    val nineKey = NineKey().register()
-    val advanced = Advanced().register()
+        val advanced = Advanced().register()
 
     @Keep
     private val onSharedPreferenceChangeListener =

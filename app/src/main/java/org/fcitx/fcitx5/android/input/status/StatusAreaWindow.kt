@@ -26,9 +26,12 @@ import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
 import org.fcitx.fcitx5.android.input.editorinfo.EditorInfoWindow
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.EncryptionManagement
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.FriendManagement
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.InputMethod
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.Keyboard
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ReloadConfig
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.TemplateManagement
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ThemeList
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
@@ -76,6 +79,21 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                 context.getString(R.string.virtual_keyboard),
                 R.drawable.ic_baseline_keyboard_24,
                 Keyboard
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.friend_management),
+                R.drawable.ic_person_24,
+                FriendManagement
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.template_management),
+                R.drawable.ic_template_24,
+                TemplateManagement
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.encryption_management),
+                R.drawable.ic_encryption_24,
+                EncryptionManagement
             )
         )
     }
@@ -152,6 +170,9 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                         }
                         Keyboard -> AppUtil.launchMainToKeyboard(context)
                         ThemeList -> AppUtil.launchMainToThemeList(context)
+                        FriendManagement -> AppUtil.launchMainToFriendManagement(context)
+                        TemplateManagement -> AppUtil.launchMainToTemplateManagement(context)
+                        EncryptionManagement -> AppUtil.launchMainToEncryptionManagement(context)
                     }
                 }
             }

@@ -33,20 +33,45 @@
 #include <unicode_public.h>
 #include <clipboard_public.h>
 
-#include <libime/pinyin/pinyindictionary.h>
 #include <libime/table/tablebaseddictionary.h>
 
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
-#include "customphrase.h"
 
 #include "androidaddonloader/androidaddonloader.h"
 #include "androidfrontend/androidfrontend_public.h"
-#include <dlfcn.h>
+#include "rimeengine.h"
+#include "rimestate.h"
+#include <fcitx/addonloader.h>
 #include "jni-utils.h"
 #include "nativestreambuf.h"
 #include "helper-types.h"
 #include "object-conversion.h"
+
+// Static addon registry for rime — linked as STATIC library into native-lib
+FCITX_DEFINE_STATIC_ADDON_REGISTRY(staticAddonRegistry)
+FCITX_IMPORT_ADDON_FACTORY(staticAddonRegistry, rime);
+
+// Minimal StaticLibraryLoader — loads addons from the static registry
+class StaticAddonLoader : public fcitx::AddonLoader {
+public:
+    StaticAddonLoader(fcitx::StaticAddonRegistry *registry) : registry_(registry) {}
+    fcitx::AddonInstance *load(const fcitx::AddonInfo &info, fcitx::AddonManager *manager) override {
+        auto iter = registry_->find(info.uniqueName());
+        if (iter == registry_->end()) return nullptr;
+        try {
+            return iter->second->create(manager);
+        } catch (const std::exception &e) {
+            FCITX_ERROR() << "Failed to create static addon: " << info.uniqueName() << " " << e.what();
+        } catch (...) {
+            FCITX_ERROR() << "Failed to create static addon: " << info.uniqueName();
+        }
+        return nullptr;
+    }
+    std::string type() const override { return "StaticLibrary"; }
+private:
+    fcitx::StaticAddonRegistry *registry_;
+};
 
 
 class Fcitx {
@@ -84,7 +109,10 @@ public:
 
     void startup(const std::function<void(fcitx::AddonInstance *)> &setupCallback) {
         p_instance = std::make_unique<fcitx::Instance>(0, nullptr);
+        // Register Android shared library loader for other addons (table, etc.)
         p_instance->addonManager().registerLoader(std::make_unique<fcitx::AndroidSharedLibraryLoader>());
+        // Register static library loader for rime addon (linked as STATIC into native-lib)
+        p_instance->addonManager().registerLoader(std::make_unique<StaticAddonLoader>(&staticAddonRegistry()));
         p_dispatcher = std::make_unique<fcitx::EventDispatcher>();
         p_dispatcher->attach(&p_instance->eventLoop());
         p_instance->initialize();
@@ -456,51 +484,61 @@ public:
         p_dispatcher->schedule(nullptr);
     }
 
-    // Rime direct API — uses dlsym to call bridge functions in rime module
-    using RimeSelectSchemaFn = void(*)(fcitx::Instance*, fcitx::InputContext*, const char*);
-    using RimeSetAsciiModeFn = void(*)(fcitx::Instance*, fcitx::InputContext*, bool);
-    using RimeToggleAsciiModeFn = void(*)(fcitx::Instance*, fcitx::InputContext*);
-    using RimeIsAsciiModeFn = bool(*)(fcitx::Instance*, fcitx::InputContext*);
-    using RimeCurrentSchemaFn = const char*(*)(fcitx::Instance*, fcitx::InputContext*);
-
+    // Rime direct API — rime is linked as STATIC library, direct C++ calls
     void rimeSelectSchema(const std::string &schemaId) {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return;
-        static auto fn = (RimeSelectSchemaFn)dlsym(RTLD_DEFAULT, "fcitx_rime_select_schema");
-        if (!fn) return;
-        fn(p_instance.get(), ic, schemaId.c_str());
+        auto *addon = p_instance->addonManager().addon("rime");
+        if (!addon) return;
+        auto *engine = static_cast<fcitx::rime::RimeEngine *>(addon);
+        auto *state = engine->state(ic);
+        if (state) state->selectSchema(schemaId);
     }
 
     void rimeSetAsciiMode(bool asciiMode) {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return;
-        static auto fn = (RimeSetAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_set_ascii_mode");
-        if (!fn) return;
-        fn(p_instance.get(), ic, asciiMode);
+        auto *addon = p_instance->addonManager().addon("rime");
+        if (!addon) return;
+        auto *engine = static_cast<fcitx::rime::RimeEngine *>(addon);
+        auto *state = engine->state(ic);
+        if (state) state->setLatinMode(asciiMode);
     }
 
     void rimeToggleAsciiMode() {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return;
-        static auto fn = (RimeToggleAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_toggle_ascii_mode");
-        if (!fn) return;
-        fn(p_instance.get(), ic);
+        auto *addon = p_instance->addonManager().addon("rime");
+        if (!addon) return;
+        auto *engine = static_cast<fcitx::rime::RimeEngine *>(addon);
+        auto *state = engine->state(ic);
+        if (state) state->toggleLatinMode();
     }
 
     bool rimeIsAsciiMode() {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return false;
-        static auto fn = (RimeIsAsciiModeFn)dlsym(RTLD_DEFAULT, "fcitx_rime_is_ascii_mode");
-        if (!fn) return false;
-        return fn(p_instance.get(), ic);
+        auto *addon = p_instance->addonManager().addon("rime");
+        if (!addon) return false;
+        auto *engine = static_cast<fcitx::rime::RimeEngine *>(addon);
+        auto *state = engine->state(ic);
+        if (!state) return false;
+        bool isAscii = false;
+        state->getStatus([&isAscii](const RimeStatus &status) {
+            isAscii = status.is_ascii_mode;
+        });
+        return isAscii;
     }
 
     std::string rimeCurrentSchema() {
         auto *ic = p_frontend->call<fcitx::IAndroidFrontend::activeInputContext>();
         if (!ic) return "";
-        static auto fn = (RimeCurrentSchemaFn)dlsym(RTLD_DEFAULT, "fcitx_rime_current_schema");
-        if (!fn) return "";
-        return fn(p_instance.get(), ic);
+        auto *addon = p_instance->addonManager().addon("rime");
+        if (!addon) return "";
+        auto *engine = static_cast<fcitx::rime::RimeEngine *>(addon);
+        auto *state = engine->state(ic);
+        if (!state) return "";
+        return state->currentSchema();
     }
 
 private:
@@ -1188,23 +1226,6 @@ Java_org_fcitx_fcitx5_android_core_Key_create(JNIEnv *env, jclass clazz, jint sy
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_org_fcitx_fcitx5_android_data_pinyin_PinyinDictManager_pinyinDictConv(JNIEnv *env, jclass clazz, jstring src, jstring dest, jboolean mode) {
-    using namespace libime;
-    PinyinDictionary dict;
-    try {
-        dict.load(PinyinDictionary::SystemDict, *CString(env, src),
-                  mode == JNI_TRUE ? PinyinDictFormat::Binary : PinyinDictFormat::Text);
-        std::ofstream out;
-        out.open(*CString(env, dest), std::ios::out | std::ios::binary);
-        dict.save(PinyinDictionary::SystemDict, out,
-                  mode == JNI_TRUE ? PinyinDictFormat::Text : PinyinDictFormat::Binary);
-    } catch (const std::exception &e) {
-        throwJavaException(env, e.what());
-    }
-}
-
-extern "C"
-JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_data_table_TableManager_tableDictConv(JNIEnv *env, jclass clazz, jstring src, jstring dest, jboolean mode) {
     using namespace libime;
     TableBasedDictionary dict;
@@ -1233,66 +1254,6 @@ Java_org_fcitx_fcitx5_android_data_table_TableManager_checkTableDictFormat(JNIEn
         throwJavaException(env, e.what());
     }
     return JNI_TRUE;
-}
-
-extern "C"
-JNIEXPORT jobjectArray JNICALL
-Java_org_fcitx_fcitx5_android_data_pinyin_CustomPhraseManager_load(JNIEnv *env, jclass clazz) {
-    auto fp = fcitx::StandardPaths::global().open(fcitx::StandardPathsType::PkgData, "pinyin/customphrase");
-    if (fp.fd() < 0) {
-        FCITX_INFO() << "cannot open pinyin/customphrase";
-        return nullptr;
-    }
-    boost::iostreams::stream_buffer<boost::iostreams::file_descriptor_source>
-            buffer(fp.fd(), boost::iostreams::file_descriptor_flags::never_close_handle);
-    std::istream in(&buffer);
-    fcitx::CustomPhraseDict dict;
-    dict.load(in, true);
-    int size = 0;
-    dict.foreach([&](const std::string &key, std::vector<fcitx::CustomPhrase> &items) {
-        FCITX_UNUSED(key);
-        size += static_cast<int>(items.size());
-    });
-    int i = 0;
-    jobjectArray array = env->NewObjectArray(size, GlobalRef->PinyinCustomPhrase, nullptr);
-    dict.foreach([&](const std::string &key, std::vector<fcitx::CustomPhrase> &items) {
-        for (const auto &item: items) {
-            env->SetObjectArrayElement(array, i++,
-                                       JRef(env, env->NewObject(GlobalRef->PinyinCustomPhrase, GlobalRef->PinyinCustomPhraseInit,
-                                                                *JString(env, key),
-                                                                item.order(),
-                                                                *JString(env, item.value())
-                                            )
-                                       )
-            );
-        }
-    });
-    return array;
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_org_fcitx_fcitx5_android_data_pinyin_CustomPhraseManager_save(JNIEnv *env, jclass clazz, jobjectArray items) {
-    fcitx::CustomPhraseDict dict;
-    const int size = env->GetArrayLength(items);
-    for (int i = 0; i < size; i++) {
-        auto phrase = JRef(env, env->GetObjectArrayElement(items, i));
-        auto phraseKey = JRef<jstring>(env, env->GetObjectField(phrase, GlobalRef->PinyinCustomPhraseKey));
-        auto phraseOrder = env->GetIntField(phrase, GlobalRef->PinyinCustomPhraseOrder);
-        auto phraseValue = JRef<jstring>(env, env->GetObjectField(phrase, GlobalRef->PinyinCustomPhraseValue));
-        dict.addPhrase(*CString(env, phraseKey),
-                       *CString(env, phraseValue),
-                       static_cast<int>(phraseOrder));
-    }
-    fcitx::StandardPaths::global().safeSave(
-            fcitx::StandardPathsType::PkgData, "pinyin/customphrase",
-            [&](int fd) {
-                boost::iostreams::stream_buffer<boost::iostreams::file_descriptor_sink>
-                        buffer(fd, boost::iostreams::file_descriptor_flags::never_close_handle);
-                std::ostream out(&buffer);
-                dict.save(out);
-                return true;
-            });
 }
 
 extern "C"

@@ -16,8 +16,13 @@ set(RIME_LINK_LIBRARIES
 # DBus and Notifications not available on Android
 add_definitions(-DFCITX_RIME_NO_DBUS)
 
-add_fcitx5_addon(rime ${RIME_SOURCES})
+# Build rime as STATIC library linked into native-lib (not MODULE plugin)
+add_library(rime STATIC ${RIME_SOURCES})
+set_target_properties(rime PROPERTIES FCITX_ADDON TRUE)
 target_link_libraries(rime ${RIME_LINK_LIBRARIES})
+
+# Rime is linked as STATIC library into native-lib, override addon type
+set(FCITX_ADDON_TYPE "StaticLibrary")
 
 # Install rime addon and inputmethod conf files
 configure_file(rime-addon.conf.in.in rime-addon.conf.in @ONLY)

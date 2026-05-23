@@ -67,6 +67,12 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
      */
     private var allowQwertyInT9 = false
 
+    /**
+     * Suppresses onImeUpdate layout switching during setKeyboardMode transitions.
+     * Set true when setKeyboardMode starts, cleared when ensureChineseIme completes.
+     */
+    private var switchingMode = false
+
     override val key: EssentialWindow.Key
         get() = KeyboardWindow
 
@@ -93,11 +99,19 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private var currentKeyboardName = ""
     private var lastSymbolType: String by AppPrefs.getInstance().internal.lastSymbolLayout
 
+    /** Last IME received from onImeUpdate — reliable source for language key updates */
+    private var lastIme: InputMethodEntry? = null
+
     /** Locked mode — for toolbar icon and gate logic */
     fun isT9Active(): Boolean = keyboardMode == KeyboardMode.T9
 
     /** Current keyboard is actually T9 layout — for InputView valve */
     fun isT9KeyboardShowing(): Boolean = currentKeyboardName == T9Keyboard.Name
+
+    fun getT9PunctPanel(): T9PunctuationPanelView? {
+        val t9 = keyboards[T9Keyboard.Name] as? T9Keyboard
+        return t9?.punctPanel
+    }
 
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
@@ -124,6 +138,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             inputDecisionBus.onDigitPress('0')
         } else if (it is KeyAction.T9BackspaceAction) {
             inputDecisionBus.onT9Backspace()
+        } else if (it is KeyAction.T9PinyinSelectAction) {
+            inputDecisionBus.onPinyinSelect(it.pinyin)
         } else if (it is KeyAction.T9SpaceAction) {
             inputDecisionBus.onQwertyKey("space", 0, 0x20)
         } else if (it is KeyAction.T9EnterAction) {
@@ -135,7 +151,9 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         } else if (it is KeyAction.SymAction) {
             inputDecisionBus.onQwertyKeySym(it.sym.sym, it.states.states.toInt())
         } else if (it is KeyAction.LangSwitchAction && keyboardMode == KeyboardMode.T9) {
-            switchToQwertyEnglish()
+            // In T9 mode, let CommonKeyActionListener handle IME switch,
+            // then onImeUpdate will handle keyboard layout switch
+            commonKeyActionListener.listener.onKeyAction(it, source)
         } else {
             commonKeyActionListener.listener.onKeyAction(it, source)
         }
@@ -169,7 +187,9 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             keyboardView.apply { add(it, lParams(matchParent, matchParent)) }
             it.onAttach()
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
-            it.onInputMethodUpdate(fcitx.runImmediately { inputMethodEntryCached })
+            // Use lastIme (from onImeUpdate event) instead of fcitx.runImmediately { inputMethodEntryCached }
+            // because inputMethodEntryCached has stale languageCode='' on the main thread
+            lastIme?.let { ime -> it.onInputMethodUpdate(ime) }
         }
     }
 
@@ -228,7 +248,18 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         keyboardMode = mode
         allowQwertyInT9 = true // allow switchLayout to reach TextKeyboard if switching to QWERTY
         when (mode) {
-            KeyboardMode.T9 -> switchLayout(T9Keyboard.Name)
+            KeyboardMode.T9 -> {
+                switchingMode = true
+                service.lifecycleScope.launch {
+                    languageAdapter.commitCurrentPreedit()
+                    languageAdapter.ensureChineseIme()
+                    // Switch layout AFTER ensureChineseIme completes so that
+                    // attachLayout's onInputMethodUpdate sees the Chinese IME
+                    // and T9Keyboard language key shows "中/英" not "英/中"
+                    switchLayout(T9Keyboard.Name)
+                    switchingMode = false
+                }
+            }
             KeyboardMode.QWERTY -> {
                 switchLayout(TextKeyboard.Name)
                 // switchLayout handles T9→Text schema switch via wasT9 check,
@@ -255,7 +286,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             }
             switchLayout(TextKeyboard.Name)
         } else {
-            // 26键英文 → 9键拼音: switchLayout(T9) already calls ensureChineseIme
+            // 26键英文 → 9键拼音: switch IME back to Chinese, then switch keyboard
+            service.lifecycleScope.launch {
+                languageAdapter.commitCurrentPreedit()
+                languageAdapter.enumerateIme()
+            }
             switchLayout(T9Keyboard.Name)
         }
     }
@@ -274,8 +309,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     override fun onImeUpdate(ime: InputMethodEntry) {
-        SecLogger.d("KBWin", "KeyboardWindow.onImeUpdate: ime=${ime.name}, languageCode=${ime.languageCode}, currentKeyboard='$currentKeyboardName', mode=$keyboardMode")
+        lastIme = ime
+        SecLogger.d("KBWin", "KeyboardWindow.onImeUpdate: ime=${ime.name}, languageCode=${ime.languageCode}, currentKeyboard='$currentKeyboardName', mode=$keyboardMode, switchingMode=$switchingMode")
         currentKeyboard?.onInputMethodUpdate(ime)
+        if (switchingMode) return // suppress layout switching during setKeyboardMode transition
         if (keyboardMode == KeyboardMode.T9) {
             val isChinese = ime.languageCode.startsWith("zh")
             if (isChinese && currentKeyboardName != T9Keyboard.Name) {

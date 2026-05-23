@@ -55,6 +55,8 @@ sealed class KeyAction {
 
     data object T9BackspaceAction : KeyAction()
 
+    data class T9PinyinSelectAction(val pinyin: String) : KeyAction()
+
     data object T9SpaceAction : KeyAction()
 
     data object T9EnterAction : KeyAction()

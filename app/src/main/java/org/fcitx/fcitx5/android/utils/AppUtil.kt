@@ -42,6 +42,15 @@ object AppUtil {
     fun launchMainToThemeList(context: Context) =
         launchMainToDest(context, SettingsRoute.Theme)
 
+    fun launchMainToFriendManagement(context: Context) =
+        launchMainToDest(context, SettingsRoute.FriendManagement)
+
+    fun launchMainToTemplateManagement(context: Context) =
+        launchMainToDest(context, SettingsRoute.TemplateManagement)
+
+    fun launchMainToEncryptionManagement(context: Context) =
+        launchMainToDest(context, SettingsRoute.EncryptionManagement)
+
     fun launchMainToInputMethodConfig(context: Context, uniqueName: String, displayName: String) =
         launchMainToDest(context, SettingsRoute.InputMethodConfig(displayName, uniqueName))
 

@@ -104,4 +104,17 @@ open class PreeditUi(
         updateTextView(upView, upStringWithCursor, hasUp)
         updateTextView(downView, downString, hasDown)
     }
+
+    fun updateFromT9(text: String) {
+        val hasUp = text.isNotEmpty()
+        visible = hasUp
+        if (!hasUp) {
+            updateTextView(upView, "", false)
+            updateTextView(downView, "", false)
+            return
+        }
+        updateTextView(upView, text, true)
+        updateTextView(downView, "", false)
+        root.visibility = View.VISIBLE
+    }
 }

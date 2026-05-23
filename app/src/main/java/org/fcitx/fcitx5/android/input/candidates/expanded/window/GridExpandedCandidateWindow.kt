@@ -7,6 +7,7 @@ package org.fcitx.fcitx5.android.input.candidates.expanded.window
 
 import android.content.res.Configuration
 import android.util.DisplayMetrics
+import android.view.ViewGroup
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
@@ -14,8 +15,9 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateLayout
 import org.fcitx.fcitx5.android.input.candidates.expanded.GridPagingCandidateViewAdapter
-import org.fcitx.fcitx5.android.input.candidates.expanded.SpanHelper
 import org.fcitx.fcitx5.android.input.candidates.expanded.decoration.GridDecoration
+import splitties.dimensions.dp
+import splitties.views.setPaddingDp
 
 class GridExpandedCandidateWindow :
     BaseExpandedCandidateWindow<GridExpandedCandidateWindow>() {
@@ -31,6 +33,15 @@ class GridExpandedCandidateWindow :
 
     override val adapter by lazy {
         object : GridPagingCandidateViewAdapter(theme) {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CandidateViewHolder {
+                val holder = super.onCreateViewHolder(parent, viewType)
+                holder.itemView.apply {
+                    minimumWidth = dp(40)
+                    setPaddingDp(10, 0, 10, 0)
+                }
+                return holder
+            }
+
             override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
                 super.onBindViewHolder(holder, position)
                 bindCandidateUiViewHolder(holder)
@@ -44,9 +55,7 @@ class GridExpandedCandidateWindow :
     }
 
     override val layoutManager by lazy {
-        GridLayoutManager(context, gridSpanCount).apply {
-            spanSizeLookup = SpanHelper(adapter, this)
-        }
+        GridLayoutManager(context, gridSpanCount)
     }
 
     override fun onCreateCandidateLayout(): ExpandedCandidateLayout =

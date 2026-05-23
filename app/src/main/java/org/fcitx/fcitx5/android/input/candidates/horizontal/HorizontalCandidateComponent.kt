@@ -133,8 +133,6 @@ class HorizontalCandidateComponent :
                 }
                 refreshExpanded(cnt)
             }
-            // no need to override `generate{,Default}LayoutParams`, because HorizontalCandidateViewAdapter
-            // guarantees ViewHolder's layoutParams to be `FlexboxLayoutManager.LayoutParams`
         }
     }
 

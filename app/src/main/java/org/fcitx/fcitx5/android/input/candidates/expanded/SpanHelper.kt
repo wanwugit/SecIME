@@ -19,11 +19,13 @@ class SpanHelper(
 
     private val layout = ArrayList<ItemLayout>()
 
-    private fun getMinSpanSize(position: Int) = min(
-        // approximately three characters or one Chinese characters per span
-        // at least one span for each word, in case measureWidth got zero due to whatever font issues
-        max(1, ceil(adapter.measureWidth(position) / 1.5).toInt()), manager.spanCount
-    )
+    private fun getMinSpanSize(position: Int): Int {
+        val rawWidth = adapter.measureWidth(position)
+        if (rawWidth <= 0f) return 1
+        // Each span ≈ 1 Chinese character width; measureWidth ≈ character count
+        val minSpan = max(1, ceil(rawWidth).toInt())
+        return min(minSpan, manager.spanCount)
+    }
 
     /**
      * clear calculated layout

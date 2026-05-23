@@ -32,7 +32,6 @@ object StatusIconMapping {
             }
         }
         when (entry.icon) {
-            "fcitx-pinyin" -> return R.drawable.ic_status_pinyin
             "fcitx-shuangpin" -> return R.drawable.ic_status_shuangpin
             "fcitx-wubi", "fcitx-wbpy" -> return R.drawable.ic_status_wubi
             "fcitx-cangjie" -> return R.drawable.ic_status_cangjie

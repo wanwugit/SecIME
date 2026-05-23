@@ -22,9 +22,9 @@ class EncryptionCandidateUi(
     override val root = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_VERTICAL
-        val bufferLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ctx.dp(24))
+        val bufferLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ctx.dp(36))
         addView(bufferBar.root, bufferLp)
-        val slotLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ctx.dp(16))
+        val slotLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ctx.dp(24))
         addView(slotBar.root, slotLp)
     }
 

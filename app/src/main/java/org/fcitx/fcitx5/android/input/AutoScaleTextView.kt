@@ -11,6 +11,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.Gravity
+import android.text.Spanned
 import android.widget.TextView
 import androidx.core.graphics.withSave
 import kotlin.math.ceil
@@ -43,6 +44,7 @@ class AutoScaleTextView @JvmOverloads constructor(
     var scaleMode = Mode.None
 
     private lateinit var text: String
+    private var hasSpans = false
 
     private var needsMeasureText = true
     private val fontMetrics = Paint.FontMetrics()
@@ -54,22 +56,35 @@ class AutoScaleTextView @JvmOverloads constructor(
     private var textScaleX = 1.0f
     private var textScaleY = 1.0f
 
+    private var _rawText: CharSequence? = null
+
     override fun setText(charSequence: CharSequence?, bufferType: BufferType) {
         // setText can be called in super constructor
         if (!::text.isInitialized || charSequence == null || !text.contentEquals(charSequence)) {
             needsMeasureText = true
             needsCalculateTransform = true
             text = charSequence?.toString() ?: ""
+            hasSpans = charSequence is Spanned
+            _rawText = charSequence
+            if (hasSpans) {
+                // Sync spans to TextView's internal mText so super.onDraw renders them
+                super.setText(charSequence, bufferType)
+            }
             requestLayout()
             invalidate()
         }
     }
 
     override fun getText(): CharSequence {
-        return text
+        return if (hasSpans) _rawText ?: text else text
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (hasSpans) {
+            // Let TextView handle measurement for spanned text
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val widthSize = MeasureSpec.getSize(widthMeasureSpec)
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
@@ -163,6 +178,11 @@ class AutoScaleTextView @JvmOverloads constructor(
         if (needsCalculateTransform) {
             calculateTransform(width, height)
             needsCalculateTransform = false
+        }
+        // Use default TextView rendering for Spanned text to support spans
+        if (hasSpans) {
+            super.onDraw(canvas)
+            return
         }
         val paint = paint
         paint.color = currentTextColor

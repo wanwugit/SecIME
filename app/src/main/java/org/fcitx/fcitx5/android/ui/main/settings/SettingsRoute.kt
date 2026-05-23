@@ -28,11 +28,13 @@ import org.fcitx.fcitx5.android.ui.main.settings.behavior.AdvancedSettingsFragme
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.CandidatesSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.ClipboardSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.KeyboardSettingsFragment
-import org.fcitx.fcitx5.android.ui.main.settings.behavior.NineKeySettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.SymbolSettingsFragment
 import org.fcitx.fcitx5.android.ui.main.settings.global.GlobalConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodConfigFragment
 import org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodListFragment
+import org.fcitx.fcitx5.android.ui.main.settings.secure.EncryptionManagementFragment
+import org.fcitx.fcitx5.android.ui.main.settings.secure.FriendManagementFragment
+import org.fcitx.fcitx5.android.ui.main.settings.secure.TemplateManagementFragment
 import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemeFragment
 import org.fcitx.fcitx5.android.utils.config.ConfigDescriptor
 import org.fcitx.fcitx5.android.utils.parcelable
@@ -80,9 +82,7 @@ sealed class SettingsRoute : Parcelable {
     @Serializable
     data object Symbol : SettingsRoute()
 
-    @Serializable
-    data object NineKey : SettingsRoute()
-
+    
     @Serializable
     data object Advanced : SettingsRoute()
 
@@ -94,6 +94,17 @@ sealed class SettingsRoute : Parcelable {
 
     @Serializable
     data object About : SettingsRoute()
+
+    /* ========== Secure ========== */
+
+    @Serializable
+    data object FriendManagement : SettingsRoute()
+
+    @Serializable
+    data object TemplateManagement : SettingsRoute()
+
+    @Serializable
+    data object EncryptionManagement : SettingsRoute()
 
     /* ========== External ========== */
 
@@ -135,11 +146,6 @@ sealed class SettingsRoute : Parcelable {
     }
 
     @Serializable
-    data class PinyinDict(val uri: String? = null) : SettingsRoute() {
-        constructor(uri: Uri) : this(uri.toString())
-    }
-
-    @Serializable
     data class Punctuation(val title: String, val lang: String? = null) : SettingsRoute()
 
     @Serializable
@@ -178,8 +184,6 @@ sealed class SettingsRoute : Parcelable {
     data object TableInputMethods : SettingsRoute()
 
     @Serializable
-    data object PinyinCustomPhrase : SettingsRoute()
-
     companion object {
         fun createGraph(controller: NavController) = controller.createGraph(Index) {
             val ctx = controller.context
@@ -219,10 +223,7 @@ sealed class SettingsRoute : Parcelable {
             fragment<SymbolSettingsFragment, Symbol> {
                 label = ctx.getString(R.string.emoji_and_symbols)
             }
-            fragment<NineKeySettingsFragment, NineKey> {
-                label = ctx.getString(R.string.nine_key)
-            }
-            fragment<AdvancedSettingsFragment, Advanced> {
+                        fragment<AdvancedSettingsFragment, Advanced> {
                 label = ctx.getString(R.string.advanced)
             }
             fragment<DeveloperFragment, Developer> {
@@ -234,15 +235,21 @@ sealed class SettingsRoute : Parcelable {
             fragment<AboutFragment, About> {
                 label = ctx.getString(R.string.about)
             }
+            fragment<FriendManagementFragment, FriendManagement> {
+                label = ctx.getString(R.string.friend_management)
+            }
+            fragment<TemplateManagementFragment, TemplateManagement> {
+                label = ctx.getString(R.string.template_management)
+            }
+            fragment<EncryptionManagementFragment, EncryptionManagement> {
+                label = ctx.getString(R.string.encryption_management)
+            }
 
             /* ========== External ========== */
 
             fragment<ListFragment, ListConfig>(
                 typeMap = mapOf(typeOf<ListConfig.Params>() to ListConfig.Params.NavType)
             )
-            fragment<PinyinDictionaryFragment, PinyinDict> {
-                label = ctx.getString(R.string.pinyin_dict)
-            }
             fragment<PunctuationEditorFragment, Punctuation>()
             fragment<QuickPhraseListFragment, QuickPhraseList> {
                 label = ctx.getString(R.string.quickphrase_editor)
@@ -253,7 +260,6 @@ sealed class SettingsRoute : Parcelable {
             fragment<TableInputMethodFragment, TableInputMethods> {
                 label = ctx.getString(R.string.table_im)
             }
-            fragment<PinyinCustomPhraseFragment, PinyinCustomPhrase>()
         }
     }
 }

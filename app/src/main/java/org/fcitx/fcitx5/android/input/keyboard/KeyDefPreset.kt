@@ -193,9 +193,12 @@ class CommaKey(
 )
 
 class LanguageKey : KeyDef(
-    Appearance.Image(
-        src = R.drawable.ic_baseline_language_24,
-        variant = Variant.AltForeground,
+    Appearance.Text(
+        displayText = "中",
+        textSize = 16f,
+        textStyle = Typeface.BOLD,
+        percentWidth = 0.10f,
+        variant = Variant.Alternative,
         viewId = R.id.button_lang
     ),
     setOf(
@@ -205,10 +208,10 @@ class LanguageKey : KeyDef(
 )
 
 class SpaceKey : KeyDef(
-    Appearance.Text(
-        displayText = " ",
-        textSize = 13f,
-        percentWidth = 0f,
+    Appearance.Image(
+        src = R.drawable.ic_baseline_space_bar_24,
+        percentWidth = 0.30f,
+        variant = Variant.Alternative,
         border = Border.Special,
         viewId = R.id.button_space,
         soundEffect = InputFeedbacks.SoundEffect.SpaceBar

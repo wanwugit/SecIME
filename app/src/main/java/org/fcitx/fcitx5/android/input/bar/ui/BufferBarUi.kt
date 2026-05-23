@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.View
 import android.widget.ImageView
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
@@ -15,6 +16,7 @@ import splitties.dimensions.dp
 import splitties.views.dsl.constraintlayout.centerVertically
 import splitties.views.dsl.constraintlayout.constraintLayout
 import splitties.views.dsl.constraintlayout.endOfParent
+import splitties.views.dsl.constraintlayout.endToStartOf
 import splitties.views.dsl.constraintlayout.lParams
 import splitties.views.dsl.constraintlayout.matchConstraints
 import splitties.views.dsl.constraintlayout.startToEndOf
@@ -63,10 +65,10 @@ class BufferBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         setGravity(Gravity.CENTER)
     }
 
-    val deleteButton = imageView {
+    val closeButton = imageView {
         scaleType = ImageView.ScaleType.CENTER_INSIDE
         padding = ctx.dp(4)
-        imageResource = R.drawable.ic_baseline_delete_24
+        imageResource = R.drawable.ic_close_24
         setColorFilter(textColorEncrypt)
     }
 
@@ -74,20 +76,21 @@ class BufferBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         background = borderDrawable
         setPadding(ctx.dp(4), ctx.dp(4), ctx.dp(4), ctx.dp(4))
 
+        add(closeButton, lParams(ctx.dp(20), ctx.dp(20)) {
+            endOfParent()
+            centerVertically()
+        })
         add(lockIcon, lParams(ctx.dp(20), ctx.dp(20)) {
             centerVertically()
         })
         add(previewText, lParams(matchConstraints, ctx.dp(20)) {
             startToEndOf(lockIcon)
+            endToStartOf(charCount)
             centerVertically()
         })
         add(charCount, lParams(wrapContent, ctx.dp(20)) {
             startToEndOf(previewText)
-            centerVertically()
-        })
-        add(deleteButton, lParams(ctx.dp(20), ctx.dp(20)) {
-            startToEndOf(charCount)
-            endOfParent()
+            endToStartOf(closeButton)
             centerVertically()
         })
     }
@@ -97,7 +100,7 @@ class BufferBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         lockIcon.setColorFilter(borderColorEncrypt)
         previewText.setTextColor(textColorEncrypt)
         charCount.setTextColor(textColorEncrypt)
-        deleteButton.setColorFilter(textColorEncrypt)
+        closeButton.setColorFilter(textColorEncrypt)
         borderDrawable.setStroke(ctx.dp(1), borderColorEncrypt)
         borderDrawable.setColor(bgColorEncrypt)
     }
@@ -107,18 +110,23 @@ class BufferBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         lockIcon.setColorFilter(borderColorDecrypt)
         previewText.setTextColor(textColorDecrypt)
         charCount.setTextColor(textColorDecrypt)
-        deleteButton.setColorFilter(textColorDecrypt)
+        closeButton.setColorFilter(textColorDecrypt)
         borderDrawable.setStroke(ctx.dp(1), borderColorDecrypt)
         borderDrawable.setColor(bgColorDecrypt)
     }
 
     fun updateContent(text: String) {
         previewText.text = text
-        charCount.text = "${text.length}"
+        if (text.isEmpty()) {
+            charCount.visibility = View.GONE
+        } else {
+            charCount.visibility = View.VISIBLE
+            charCount.text = "${text.length}"
+        }
     }
 
     fun clearContent() {
         previewText.text = ""
-        charCount.text = "0"
+        charCount.visibility = View.GONE
     }
 }

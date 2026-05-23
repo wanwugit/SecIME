@@ -20,24 +20,16 @@ class GridDecoration(val drawable: Drawable) : RecyclerView.ItemDecoration() {
         parent: RecyclerView,
         state: RecyclerView.State
     ) {
-        val lp = view.layoutParams as GridLayoutManager.LayoutParams
-        val layoutManager = parent.layoutManager as GridLayoutManager
-        // add space for items except last in each row
-        if (lp.spanIndex + lp.spanSize != layoutManager.spanCount) {
-            when (parent.layoutDirection) {
-                View.LAYOUT_DIRECTION_LTR -> {
-                    outRect.right = drawable.intrinsicWidth
-                }
-                View.LAYOUT_DIRECTION_RTL -> {
-                    outRect.left = drawable.intrinsicWidth
-                }
-                else -> {
-                    // should not reach here
-                    outRect.set(0, 0, 0, 0)
-                }
+        when (parent.layoutDirection) {
+            View.LAYOUT_DIRECTION_LTR -> {
+                outRect.right = drawable.intrinsicWidth
             }
-        } else {
-            outRect.set(0, 0, 0, 0)
+            View.LAYOUT_DIRECTION_RTL -> {
+                outRect.left = drawable.intrinsicWidth
+            }
+            else -> {
+                outRect.set(0, 0, 0, 0)
+            }
         }
     }
 

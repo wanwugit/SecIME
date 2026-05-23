@@ -117,13 +117,13 @@ abstract class BaseKeyboard(
                 }
                 if (expandKeypressArea && totalWidth < 1f) {
                     val free = (1f - totalWidth) / 2f
-                    keyViews.first().apply {
+                    (keyViews.first() as? KeyView)?.apply {
                         updateLayoutParams<LayoutParams> {
                             matchConstraintPercentWidth += free
                         }
                         layoutMarginLeft = free / (row.first().appearance.percentWidth + free)
                     }
-                    keyViews.last().apply {
+                    (keyViews.last() as? KeyView)?.apply {
                         updateLayoutParams<LayoutParams> {
                             matchConstraintPercentWidth += free
                         }
@@ -141,10 +141,160 @@ abstract class BaseKeyboard(
                 centerHorizontally()
             })
         }
+        // Apply rowSpan: move spanning keys from their row to BaseKeyboard so they
+        // can span multiple rows. Replace the removed key with an invisible
+        // placeholder in the same chain position to keep the row's layout intact.
+        // The span key uses ConstraintLayout constraints for positioning:
+        // - horizontal: leftToLeft + rightToRight + horizontalBias=0 + percentWidth
+        // - vertical: topToTop + bottomToBottom across multiple rows
+        keyLayout.forEachIndexed { rowIndex, row ->
+            row.forEachIndexed { keyIndex, def ->
+                if (def.rowSpan > 1 && rowIndex + def.rowSpan <= keyRows.size) {
+                    val rowView = keyRows[rowIndex]
+                    val keyView = rowView.children.toList().getOrNull(keyIndex) ?: return@forEachIndexed
+                    // Create invisible placeholder to preserve chain position.
+                    // Width must be 0 (MATCH_CONSTRAINT) for matchConstraintPercentWidth to work.
+                    val placeholder = View(context).apply {
+                        visibility = View.INVISIBLE
+                        id = View.generateViewId()
+                    }
+                    // Remove span key and insert placeholder at same position
+                    rowView.removeView(keyView)
+                    rowView.addView(placeholder, keyIndex, LayoutParams(0, LayoutParams.MATCH_PARENT))
+                    // Rebuild chain with placeholder in span key's position
+                    val allViews = rowView.children.toList()
+                    allViews.forEachIndexed { index, view ->
+                        view.updateLayoutParams<LayoutParams> {
+                            if (index == 0) {
+                                leftOfParent()
+                                horizontalChainStyle = LayoutParams.CHAIN_PACKED
+                            } else {
+                                leftToRightOf(allViews[index - 1])
+                            }
+                            if (index == allViews.size - 1) {
+                                rightOfParent()
+                                horizontalChainStyle = LayoutParams.CHAIN_PACKED
+                            } else {
+                                rightToLeftOf(allViews[index + 1])
+                            }
+                            if (view === placeholder) {
+                                matchConstraintPercentWidth = def.appearance.percentWidth
+                            }
+                        }
+                    }
+                    // Add span key to BaseKeyboard with ConstraintLayout constraints
+                    add(keyView, lParams(0, 0) {
+                        topToTop = keyRows[rowIndex].id
+                        bottomToBottom = keyRows[rowIndex + def.rowSpan - 1].id
+                        leftToLeft = keyRows[rowIndex].id
+                        rightToRight = keyRows[rowIndex].id
+                        horizontalBias = 0f
+                        matchConstraintPercentWidth = def.appearance.percentWidth
+                    })
+                                    }
+            }
+        }
         spaceSwipeMoveCursor.registerOnChangeListener(spaceSwipeChangeListener)
     }
 
-    private fun createKeyView(def: KeyDef): KeyView {
+    private fun createKeyView(def: KeyDef): View {
+        // T9PunctuationPanelKey uses custom FrameLayout (not KeyView)
+        if (def is T9PunctuationPanelKey) {
+            return T9PunctuationPanelView(context, theme, def).apply {
+                onAction = { action -> this@BaseKeyboard.onAction(action) }
+            }
+        }
+        // T9DigitKey uses custom T9DigitKeyView (letters big, digit small)
+        if (def is T9DigitKey) {
+            val appearance = def.appearance as KeyDef.Appearance.AltText
+            return T9DigitKeyView(context, theme, appearance).apply {
+                soundEffect = InputFeedbacks.SoundEffect.Standard
+                def.behaviors.forEach {
+                    when (it) {
+                        is KeyDef.Behavior.Press -> {
+                            setOnClickListener { _ ->
+                                onAction(it.action)
+                            }
+                        }
+                        is KeyDef.Behavior.LongPress -> {
+                            setOnLongClickListener { _ ->
+                                onAction(it.action)
+                                true
+                            }
+                        }
+                        is KeyDef.Behavior.Repeat -> {
+                            repeatEnabled = true
+                            onRepeatListener = { view ->
+                                onAction(it.action)
+                                if (hapticOnRepeat) InputFeedbacks.hapticFeedback(view)
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+                def.popup?.forEach {
+                    when (it) {
+                        is KeyDef.Popup.AltPreview -> {
+                            val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
+                            onGestureListener = OnGestureListener { view, event ->
+                                view as KeyView
+                                if (popupOnKeyPress) {
+                                    when (event.type) {
+                                        GestureType.Down -> onPopupAction(
+                                            PopupAction.PreviewAction(view.id, it.content, view.bounds)
+                                        )
+                                        GestureType.Move -> {
+                                            val triggered = swipeSymbolDirection.checkY(event.totalY)
+                                            val text = if (triggered) it.alternative else it.content
+                                            onPopupAction(
+                                                PopupAction.PreviewUpdateAction(view.id, text)
+                                            )
+                                        }
+                                        GestureType.Up -> {
+                                            onPopupAction(PopupAction.DismissAction(view.id))
+                                        }
+                                    }
+                                }
+                                oldOnGestureListener.onGesture(view, event)
+                            }
+                        }
+                        is KeyDef.Popup.Keyboard -> {
+                            setOnLongClickListener { view ->
+                                view as KeyView
+                                onPopupAction(PopupAction.ShowKeyboardAction(view.id, it, view.bounds))
+                                false
+                            }
+                            val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
+                            swipeEnabled = true
+                            onGestureListener = OnGestureListener { view, event ->
+                                view as KeyView
+                                when (event.type) {
+                                    GestureType.Move -> {
+                                        onPopupChangeFocus(view.id, event.x, event.y)
+                                    }
+                                    GestureType.Up -> {
+                                        onPopupTrigger(view.id)
+                                    }
+                                    else -> false
+                                } || oldOnGestureListener.onGesture(view, event)
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+            }
+        }
+        // SpacerKey is invisible but preserves layout space
+        if (def is SpacerKey) {
+            return when (def.appearance) {
+                is KeyDef.Appearance.Text -> TextKeyView(context, theme, def.appearance)
+                else -> throw IllegalArgumentException("SpacerKey must use Text appearance")
+            }.apply {
+                visibility = View.INVISIBLE
+                isClickable = false
+                isFocusable = false
+            }
+        }
         return when (def.appearance) {
             is KeyDef.Appearance.AltText -> AltTextKeyView(context, theme, def.appearance)
             is KeyDef.Appearance.ImageText -> ImageTextKeyView(context, theme, def.appearance)

@@ -23,7 +23,6 @@ get_target_property(LIBIME_CMAKE_MODULES libime::cmake INTERFACE_INCLUDE_DIRECTO
 set(CMAKE_MODULE_PATH ${LIBIME_CMAKE_MODULES} ${CMAKE_MODULE_PATH})
 
 find_package(LibIMECore MODULE)
-find_package(LibIMEPinyin MODULE)
 find_package(LibIMETable MODULE)
 
 find_package(fcitx5-lua REQUIRED CONFIG)
@@ -43,11 +42,6 @@ find_package(libuv)
 # prebuilt boost
 list(APPEND CMAKE_FIND_ROOT_PATH "${PREBUILT_DIR}/boost/${ANDROID_ABI}/lib/cmake")
 find_package(Boost 1.86.0 REQUIRED COMPONENTS headers iostreams CONFIG)
-
-set(CHINESE_ADDONS_PINYIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../lib/fcitx5-chinese-addons/src/main/cpp/fcitx5-chinese-addons/im/pinyin")
-add_library(pinyin-customphrase STATIC "${CHINESE_ADDONS_PINYIN_DIR}/customphrase.cpp")
-target_include_directories(pinyin-customphrase INTERFACE "${CHINESE_ADDONS_PINYIN_DIR}")
-target_link_libraries(pinyin-customphrase PRIVATE Fcitx5::Utils LibIME::Core)
 
 # --- Rime addon (embedded from plugin:rime) ---
 set(Rime_VERSION "1.12.0")
@@ -121,6 +115,7 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rime-data/opencc/" DESTINATION "$
 add_library(native-lib SHARED native-lib.cpp androidaddonloader/androidaddonloader.cpp)
 target_compile_definitions(native-lib PRIVATE FCITX_RIME_NO_DBUS)
 target_include_directories(native-lib PRIVATE
+        fcitx5-rime/src
         )
 target_link_libraries(native-lib
         log
@@ -133,9 +128,8 @@ target_link_libraries(native-lib
         Fcitx5::Module::Clipboard
         Boost::headers
         Boost::iostreams
-        LibIME::Pinyin
         LibIME::Table
-        pinyin-customphrase
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,rime>
         )
 
 # copy module libraries from dependency lib
@@ -145,7 +139,6 @@ add_custom_target(copy-fcitx5-modules
         $<TARGET_PROPERTY:fcitx5::Fcitx5Config,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5::Fcitx5Utils,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:libime::IMECore,IMPORTED_LOCATION>
-        $<TARGET_PROPERTY:libime::IMEPinyin,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:libime::IMETable,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5::clipboard,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5::imselector,IMPORTED_LOCATION>
@@ -153,7 +146,6 @@ add_custom_target(copy-fcitx5-modules
         $<TARGET_PROPERTY:fcitx5::spell,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5::unicode,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5-lua::luaaddonloader,IMPORTED_LOCATION>
-        $<TARGET_PROPERTY:fcitx5-chinese-addons::pinyin,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5-chinese-addons::table,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5-chinese-addons::scel2org5,IMPORTED_LOCATION>
         $<TARGET_PROPERTY:fcitx5-chinese-addons::chttrans,IMPORTED_LOCATION>
@@ -166,7 +158,6 @@ add_custom_target(copy-fcitx5-modules
 
 # install prebuilt assets
 install(FILES "${PREBUILT_DIR}/spell-dict/en_dict.fscd" DESTINATION "${FCITX_INSTALL_PKGDATADIR}/spell" COMPONENT prebuilt-assets)
-install(FILES "${PREBUILT_DIR}/chinese-addons-data/pinyin/chaizi.dict" DESTINATION "${FCITX_INSTALL_PKGDATADIR}/pinyin" COMPONENT prebuilt-assets)
 install(DIRECTORY "${PREBUILT_DIR}/chinese-addons-data/pinyinhelper" DESTINATION "${FCITX_INSTALL_PKGDATADIR}" COMPONENT prebuilt-assets)
 install(DIRECTORY "${PREBUILT_DIR}/libime/table" DESTINATION "${FCITX_INSTALL_PKGDATADIR}" COMPONENT prebuilt-assets)
 install(DIRECTORY "${PREBUILT_DIR}/libime/data/" DESTINATION "${FCITX_INSTALL_DATADIR}/libime" COMPONENT prebuilt-assets)

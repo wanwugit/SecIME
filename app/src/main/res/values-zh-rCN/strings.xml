@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">小企鹅输入法</string>
-    <string name="app_name_debug">小企鹅输入法 (调试)</string>
+    <string name="app_name_release">隐言输入法</string>
+    <string name="app_name_debug">隐言输入法 (调试)</string>
     <string name="save">保存</string>
     <string name="input_methods">输入法</string>
     <string name="add_input_method">添加输入法</string>
@@ -317,4 +317,19 @@
     <string name="hide_unsupported_emojis">隐藏不支持的表情</string>
     <string name="key_border_stroke">启用按键边框描边</string>
     <string name="preferred_voice_input">首选语音输入</string>
+    <string name="security">安全</string>
+    <string name="friend_management">好友管理</string>
+    <string name="template_management">伪装模板</string>
+    <string name="encryption_management">加密管理</string>
+    <string name="friend_user_id">用户ID</string>
+    <string name="friend_remark">备注名</string>
+    <string name="friend_phone">手机号</string>
+    <string name="template_name">模板名称</string>
+    <string name="template_prefix">前缀</string>
+    <string name="template_suffix">后缀</string>
+    <string name="encrypt_mode">加密模式</string>
+    <string name="codebook_id">密码本ID</string>
+    <string name="default_template">默认伪装模板</string>
+    <string name="auto_encrypt">自动加密</string>
+    <string name="clipboard_auto_decrypt">剪贴板自动解密</string>
 </resources>

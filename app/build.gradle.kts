@@ -70,7 +70,11 @@ fcitxComponent {
     // exclude (delete immediately after install) tables that nobody would use
     excludeFiles = listOf("cangjie", "erbi", "qxm", "wanfeng").map {
         "usr/share/fcitx5/inputmethod/$it.conf"
-    }
+    } + listOf(
+        "usr/share/fcitx5/addon/pinyin.conf",
+        "usr/share/fcitx5/inputmethod/pinyin.conf",
+        "usr/share/fcitx5/inputmethod/shuangpin.conf"
+    )
     installPrebuiltAssets = true
 }
 

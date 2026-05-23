@@ -152,4 +152,17 @@ val PopupPreset: Map<String, Array<String>> = hashMapOf(
     // Currency
     //
     "$" to arrayOf("¢", "€", "£", "¥", "₹", "₽", "₺", "₩", "₱", "₿"),
+    //
+    // T9 digit key popups
+    //
+    "1" to arrayOf("1", "'"),
+    "2" to arrayOf("2", "a", "b", "c"),
+    "3" to arrayOf("3", "d", "e", "f"),
+    "4" to arrayOf("4", "g", "h", "i"),
+    "5" to arrayOf("5", "j", "k", "l"),
+    "6" to arrayOf("6", "m", "n", "o"),
+    "7" to arrayOf("7", "p", "q", "r", "s"),
+    "8" to arrayOf("8", "t", "u", "v"),
+    "9" to arrayOf("9", "w", "x", "y", "z"),
+    "0" to arrayOf("0", " "),
 )

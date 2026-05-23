@@ -110,31 +110,32 @@ class FcitxLanguageAdapter(private val service: FcitxInputMethodService) : Langu
 
     override suspend fun ensureChineseIme() {
         SecLogger.d("FcitxAdapter", "ensureChineseIme: start")
-        // Use direct Rime API: set ascii_mode=false to ensure Chinese mode
-        suspendCancellableCoroutine<Unit> { cont ->
+        // Check if already on Chinese IME
+        val alreadyChinese = suspendCancellableCoroutine<Boolean> { cont ->
             service.postFcitxJob {
                 if (!cont.isActive) return@postFcitxJob
-                rimeSetAsciiMode(false)
-                if (cont.isActive) cont.resumeWith(Result.success(Unit))
-            }
-        }
-        // Verify the IME language code is now Chinese
-        for (i in 0..10) {
-            val isChinese = suspendCancellableCoroutine<Boolean> { cont ->
-                service.postFcitxJob {
-                    if (!cont.isActive) return@postFcitxJob
-                    val current = inputMethodEntryCached
-                    if (current.languageCode.startsWith("zh")) {
-                        cont.resumeWith(Result.success(true))
-                    } else {
-                        enumerateIme()
-                        if (cont.isActive) cont.resumeWith(Result.success(false))
+                val current = inputMethodEntryCached
+                val isChinese = current.languageCode.startsWith("zh")
+                if (isChinese) {
+                    cont.resumeWith(Result.success(true))
+                } else {
+                    // Not on Chinese IME — activate Rime directly instead of enumerateIme()
+                    // enumerateIme() cycles through IMEs causing visible flashing
+                    val rimeEntries = availableIme().filter { it.addon.equals("rime", ignoreCase = true) }
+                    if (rimeEntries.isNotEmpty()) {
+                        activateIme(rimeEntries.first().uniqueName)
                     }
+                    rimeSetAsciiMode(false)
+                    cont.resumeWith(Result.success(false))
                 }
             }
-            if (isChinese) break
-            delay(50)
         }
+        if (alreadyChinese) {
+            SecLogger.d("FcitxAdapter", "ensureChineseIme: already Chinese, done")
+            return
+        }
+        // Wait briefly for IME switch to take effect
+        delay(50)
         SecLogger.d("FcitxAdapter", "ensureChineseIme: done")
     }
 
