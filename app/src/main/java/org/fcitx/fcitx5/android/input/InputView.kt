@@ -19,12 +19,14 @@ import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.FcitxEvent
+import org.fcitx.fcitx5.android.core.FormattedText
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceProvider
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
+import org.fcitx.fcitx5.android.input.bar.EncryptionBarComponent
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
 import org.fcitx.fcitx5.android.input.SecLogger
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcaster
@@ -112,6 +114,7 @@ class InputView(
     val inputDecisionBus = InputDecisionBus()
     private val windowManager = InputWindowManager()
     private val kawaiiBar = KawaiiBarComponent()
+    private val encryptionBar = EncryptionBarComponent()
     private val horizontalCandidate = HorizontalCandidateComponent()
     private val candidateViewAdapter = CandidateViewAdapter(
         inputDecisionBus.candidatePipeline,
@@ -144,6 +147,7 @@ class InputView(
         scope += windowManager
         scope += keyboardWindow
         scope += kawaiiBar
+        scope += encryptionBar
         scope += horizontalCandidate
         broadcaster.onScopeSetupFinished(scope)
     }
@@ -224,7 +228,24 @@ class InputView(
         broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
 
         candidateViewAdapter.startCollecting(uiScope)
+        candidateViewAdapter.getSyllableIndex = { inputDecisionBus.currentSyllableIndex }
+        candidateViewAdapter.getPendingDigits = { inputDecisionBus.pendingDigits }
+        candidateViewAdapter.onPinyinUpdate = { syllableOptions ->
+            val panel = keyboardWindow.getT9PunctPanel()
+            if (keyboardWindow.isT9KeyboardShowing() && panel != null) {
+                if (syllableOptions.isNotEmpty()) {
+                    panel.showPinyin(syllableOptions)
+                } else {
+                    panel.showSymbols()
+                }
+            }
+        }
         preeditViewAdapter.startCollecting(uiScope)
+        preeditViewAdapter.onPreeditUpdate = { state ->
+            if (keyboardWindow.isT9KeyboardShowing()) {
+                preedit.updateFromT9(state.decodedDisplay)
+            }
+        }
         kawaiiBar.startCollectingCandidatePipeline(uiScope)
 
         customBackground.imageDrawable = theme.backgroundDrawable(keyBorder)
@@ -242,18 +263,22 @@ class InputView(
                 topOfParent()
                 centerHorizontally()
             })
-            add(leftPaddingSpace, lParams {
+            add(encryptionBar.view, lParams(matchParent, dp(EncryptionBarComponent.HEIGHT)) {
                 below(kawaiiBar.view)
+                centerHorizontally()
+            })
+            add(leftPaddingSpace, lParams {
+                below(encryptionBar.view)
                 startOfParent()
                 bottomOfParent()
             })
             add(rightPaddingSpace, lParams {
-                below(kawaiiBar.view)
+                below(encryptionBar.view)
                 endOfParent()
                 bottomOfParent()
             })
             add(windowManager.view, lParams {
-                below(kawaiiBar.view)
+                below(encryptionBar.view)
                 above(bottomPaddingSpace)
                 /**
                  * set start and end constrain in [updateKeyboardSize]
@@ -320,6 +345,7 @@ class InputView(
         }
         preedit.ui.root.setPadding(sidePadding, 0, sidePadding, 0)
         kawaiiBar.view.setPadding(sidePadding, 0, sidePadding, 0)
+        encryptionBar.view.setPadding(sidePadding, 0, sidePadding, 0)
     }
 
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
@@ -367,11 +393,15 @@ class InputView(
             is FcitxEvent.InputPanelEvent -> {
                 SecLogger.d("InputView", "InputPanelEvent: preedit='${it.data.preedit}', auxUp='${it.data.auxUp}', auxDown='${it.data.auxDown}'")
                 preeditEmptyState.updatePreeditEmptyState(preedit = it.data.preedit)
-                broadcaster.onInputPanelUpdate(it.data)
+                val isT9 = keyboardWindow.isT9KeyboardShowing()
+                if (!isT9) {
+                    val noAuxData = it.data.copy(auxUp = FormattedText.Empty, auxDown = FormattedText.Empty)
+                    broadcaster.onInputPanelUpdate(noAuxData)
+                }
                 inputDecisionBus.onFcitxPreeditEvent(
                     it.data.preedit.toString(),
-                    if (it.data.auxUp.isNotEmpty()) it.data.auxUp.toString() else "",
-                    if (it.data.auxDown.isNotEmpty()) it.data.auxDown.toString() else ""
+                    "",
+                    ""
                 )
             }
             is FcitxEvent.IMChangeEvent -> {

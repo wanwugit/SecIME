@@ -52,4 +52,12 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.status_area)
     }
 
+    val encryptLockButton = toolButton(R.drawable.ic_encrypt_lock_24).apply {
+        contentDescription = "加密"
+    }
+
+    val decryptLockButton = toolButton(R.drawable.ic_decrypt_lock_24).apply {
+        contentDescription = "解密"
+    }
+
 }

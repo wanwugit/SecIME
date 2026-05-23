@@ -50,8 +50,6 @@ import org.fcitx.fcitx5.android.input.bar.ui.IdleUi
 import org.fcitx.fcitx5.android.input.bar.ui.TitleUi
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver
 import org.fcitx.fcitx5.android.input.bus.InputDecisionBus
-import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
-import org.fcitx.fcitx5.android.input.candidates.expanded.window.FlexboxExpandedCandidateWindow
 import org.fcitx.fcitx5.android.input.candidates.expanded.window.GridExpandedCandidateWindow
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
 import org.fcitx.fcitx5.android.input.clipboard.ClipboardWindow
@@ -102,13 +100,13 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val popup: PopupComponent by manager.must()
     private val inputDecisionBus: InputDecisionBus by manager.must()
     private val keyboardWindow: KeyboardWindow by manager.must()
+    private val encryptionBar: EncryptionBarComponent by manager.must()
 
     private val prefs = AppPrefs.getInstance()
 
     private val clipboardSuggestion = prefs.clipboard.clipboardSuggestion
     private val clipboardItemTimeout = prefs.clipboard.clipboardItemTimeout
     private val clipboardMaskSensitive by prefs.clipboard.clipboardMaskSensitive
-    private val expandedCandidateStyle by prefs.keyboard.expandedCandidateStyle
     private val expandToolbarByDefault by prefs.keyboard.expandToolbarByDefault
     private val toolbarNumRowOnPassword by prefs.keyboard.toolbarNumRowOnPassword
     private val showVoiceInputButton by prefs.keyboard.showVoiceInputButton
@@ -326,6 +324,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 moreButton.setOnClickListener {
                     windowManager.attachWindow(StatusAreaWindow())
                 }
+                encryptLockButton.setOnClickListener {
+                    encryptionBar.toggleEncryptLock()
+                }
+                decryptLockButton.setOnClickListener {
+                    encryptionBar.toggleDecryptLock()
+                }
             }
             clipboardUi.suggestionView.apply {
                 setOnClickListener {
@@ -390,12 +394,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     // set expand candidate button to create expand candidate
     private fun setExpandButtonToAttach() {
         candidateUi.expandButton.setOnClickListener {
-            windowManager.attachWindow(
-                when (expandedCandidateStyle) {
-                    ExpandedCandidateStyle.Grid -> GridExpandedCandidateWindow()
-                    ExpandedCandidateStyle.Flexbox -> FlexboxExpandedCandidateWindow()
-                }
-            )
+            windowManager.attachWindow(GridExpandedCandidateWindow())
         }
         candidateUi.expandButton.setIcon(R.drawable.ic_baseline_expand_more_24)
         candidateUi.expandButton.contentDescription = context.getString(R.string.expand_candidates_list)
@@ -573,11 +572,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
 
     fun onKeyboardModeChanged(isT9: Boolean) {
         SecLogger.d("Bar", "Bar.onKeyboardModeChanged: isT9=$isT9")
-        idleUi.buttonsUi.keyboardModeButton.setIcon(
-            if (isT9) R.drawable.ic_baseline_keyboard_24 else R.drawable.ic_dialpad
-        )
+        idleUi.buttonsUi.keyboardModeButton.setIcon(R.drawable.ic_baseline_keyboard_24)
         idleUi.buttonsUi.keyboardModeButton.contentDescription = context.getString(
-            if (isT9) R.string.switch_to_qwerty else R.string.switch_to_t9
+            R.string.switch_keyboard_mode
         )
     }
 
