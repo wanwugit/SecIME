@@ -180,10 +180,6 @@ sealed class SettingsRoute : Parcelable {
         }
     }
 
-    @Serializable
-    data object TableInputMethods : SettingsRoute()
-
-    @Serializable
     companion object {
         fun createGraph(controller: NavController) = controller.createGraph(Index) {
             val ctx = controller.context
@@ -257,9 +253,6 @@ sealed class SettingsRoute : Parcelable {
             fragment<QuickPhraseEditFragment, QuickPhraseEdit>(
                 typeMap = mapOf(typeOf<QuickPhraseEdit.Param>() to QuickPhraseEdit.Param.NavType)
             )
-            fragment<TableInputMethodFragment, TableInputMethods> {
-                label = ctx.getString(R.string.table_im)
-            }
         }
     }
 }

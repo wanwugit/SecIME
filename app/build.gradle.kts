@@ -64,16 +64,18 @@ fcitxComponent {
     includeLibs = listOf(
         "fcitx5",
         "fcitx5-lua",
-        "libime",
         "fcitx5-chinese-addons"
     )
     // exclude (delete immediately after install) tables that nobody would use
-    excludeFiles = listOf("cangjie", "erbi", "qxm", "wanfeng").map {
+    excludeFiles = listOf("cangjie", "erbi", "qxm", "wanfeng", "wbpy", "wbx", "zrm", "db").map {
         "usr/share/fcitx5/inputmethod/$it.conf"
     } + listOf(
         "usr/share/fcitx5/addon/pinyin.conf",
         "usr/share/fcitx5/inputmethod/pinyin.conf",
-        "usr/share/fcitx5/inputmethod/shuangpin.conf"
+        "usr/share/fcitx5/inputmethod/shuangpin.conf",
+        "usr/share/fcitx5/addon/table.conf",
+        "usr/share/fcitx5/addon/pinyinhelper.conf",
+        "usr/share/fcitx5/addon/cloudpinyin.conf"
     )
     installPrebuiltAssets = true
 }
@@ -86,10 +88,9 @@ dependencies {
     ksp(project(":codegen"))
     implementation(project(":lib:fcitx5"))
     implementation(project(":lib:fcitx5-lua"))
-    implementation(project(":lib:libime"))
     implementation(project(":lib:fcitx5-chinese-addons"))
     implementation(project(":lib:common"))
-    implementation("org.secureime:secureime")
+    implementation(project(":sect9"))
     implementation(libs.kotlinx.coroutines)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.activity)

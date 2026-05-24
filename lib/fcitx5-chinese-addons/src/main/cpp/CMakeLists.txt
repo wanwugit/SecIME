@@ -19,14 +19,6 @@ find_package(ECM MODULE)
 find_package(Fcitx5Core MODULE)
 find_package(Fcitx5Module MODULE)
 
-find_package(libime REQUIRED CONFIG)
-get_target_property(LIBIME_CMAKE_MODULES libime::cmake INTERFACE_INCLUDE_DIRECTORIES)
-set(CMAKE_MODULE_PATH ${LIBIME_CMAKE_MODULES} ${CMAKE_MODULE_PATH})
-
-find_package(LibIMECore MODULE)
-find_package(LibIMEPinyin MODULE)
-find_package(LibIMETable MODULE)
-
 find_package(fcitx5-lua REQUIRED CONFIG)
 get_target_property(FCITX5_LUA_CMAKE_MODULES fcitx5-lua::cmake INTERFACE_INCLUDE_DIRECTORIES)
 set(CMAKE_MODULE_PATH ${FCITX5_LUA_CMAKE_MODULES} ${CMAKE_MODULE_PATH})

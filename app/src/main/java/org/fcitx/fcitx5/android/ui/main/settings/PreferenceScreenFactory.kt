@@ -114,12 +114,6 @@ object PreferenceScreenFactory {
             }
         }
 
-        fun tableInputMethod() = Preference(context).apply {
-            setOnPreferenceClickListener {
-                navigate(SettingsRoute.TableInputMethods)
-            }
-        }
-
         fun rimeUserDataDir(title: String): Preference = LongClickPreference(context).apply {
             setOnPreferenceClickListener {
                 AlertDialog.Builder(context)
@@ -202,7 +196,7 @@ object PreferenceScreenFactory {
                 ConfigExternal.ETy.QuickPhrase -> quickPhraseEditor()
                 ConfigExternal.ETy.Chttrans -> addonConfigPreference("chttrans")
                 ConfigExternal.ETy.TableGlobal -> addonConfigPreference("table")
-                ConfigExternal.ETy.AndroidTable -> tableInputMethod()
+                ConfigExternal.ETy.AndroidTable -> stubPreference()
                 ConfigExternal.ETy.RimeUserDataDir -> rimeUserDataDir(
                     descriptor.description ?: descriptor.name
                 )

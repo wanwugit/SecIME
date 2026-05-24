@@ -45,6 +45,10 @@ class InputDecisionBus :
     @Volatile
     var isRebuilding = false
 
+    /** First T9 digit after mode switch — if Rime returns empty preedit, re-apply schema */
+    @Volatile
+    var t9SchemaRetryNeeded = false
+
     /** rebuildInput 期间缓存的最后一次候选词数据，用于结束后重放 */
     @Volatile
     private var lastSuppressedCandidates: Array<String>? = null
@@ -109,7 +113,18 @@ class InputDecisionBus :
         pendingDigits += digit
         SecLogger.d("Bus", "Bus.onDigitPress: digit='$digit', pending='$pendingDigits', syllables=${confirmedSyllables.toList()}, digitGroups=${confirmedDigitGroups.toList()}")
         val code = ScancodeMapping.charToScancode(digit)
-        service.lifecycleScope.launch { languageAdapter.sendKey(digit.toString(), 0, code) }
+        service.lifecycleScope.launch {
+            if (t9SchemaRetryNeeded && confirmedSyllables.isEmpty()) {
+                // Previous digits returned empty preedit — T9 schema not applied
+                // Re-apply schema, then rebuild (reset + resend all pending digits)
+                SecLogger.d("Bus", "Bus.onDigitPress: t9SchemaRetryNeeded, re-applying T9 schema and rebuilding pending='$pendingDigits'")
+                t9SchemaRetryNeeded = false
+                languageAdapter.activateT9Schema()
+                rebuildInput()
+            } else {
+                languageAdapter.sendKey(digit.toString(), 0, code)
+            }
+        }
         return true
     }
 
@@ -120,12 +135,12 @@ class InputDecisionBus :
         return true
     }
 
-    /** T9 退格：先删 pendingDigits 的末尾数字，再删最后一个已确认组（数字恢复为 pending，字母从 syllables 删除） */
+    /** T9 退格：先删 pendingDigits 的末尾数字（直接发 Backspace），再删最后一个已确认组（需要 rebuild） */
     fun onT9Backspace(): Boolean {
         SecLogger.d("Bus", "Bus.onT9Backspace: pending='$pendingDigits', syllables=${confirmedSyllables.toList()}, digitGroups=${confirmedDigitGroups.toList()}")
         if (pendingDigits.isNotEmpty()) {
             pendingDigits = pendingDigits.dropLast(1)
-            service.lifecycleScope.launch { rebuildInput() }
+            service.lifecycleScope.launch { languageAdapter.sendKeySym(0xFF08, 0) }
         } else if (confirmedDigitGroups.isNotEmpty()) {
             pendingDigits = confirmedDigitGroups.removeLast()
             confirmedSyllables.removeLast()
@@ -328,6 +343,11 @@ class InputDecisionBus :
             lastSuppressedAuxUp = auxUp
             lastSuppressedAuxDown = auxDown
             return
+        }
+        // Detect T9 schema not applied: user has pending digits but Rime returns empty preedit
+        if (pendingDigits.isNotEmpty() && preedit.isEmpty() && !t9SchemaRetryNeeded) {
+            SecLogger.d("Bus", "Bus.onFcitxPreeditEvent: T9 schema likely not applied, setting retry flag")
+            t9SchemaRetryNeeded = true
         }
         val displayPreedit = buildT9Preedit(preedit)
         SecLogger.d("Bus", "Bus.onFcitxPreeditEvent: rime='$preedit'→display='$displayPreedit', syllables=${confirmedSyllables.toList()}, pending='$pendingDigits'")

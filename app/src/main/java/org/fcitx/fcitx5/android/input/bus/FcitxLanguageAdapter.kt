@@ -109,23 +109,34 @@ class FcitxLanguageAdapter(private val service: FcitxInputMethodService) : Langu
     }
 
     override suspend fun ensureChineseIme() {
-        SecLogger.d("FcitxAdapter", "ensureChineseIme: start")
-        // Check if already on Chinese IME
+        ensureChineseImeWithSchema(null)
+    }
+
+    /** Activate Chinese IME and optionally switch schema in one atomic FcitxJob */
+    private suspend fun ensureChineseImeWithSchema(schema: String?) {
+        SecLogger.d("FcitxAdapter", "ensureChineseIme: start, schema=$schema")
         val alreadyChinese = suspendCancellableCoroutine<Boolean> { cont ->
             service.postFcitxJob {
                 if (!cont.isActive) return@postFcitxJob
                 val current = inputMethodEntryCached
                 val isChinese = current.languageCode.startsWith("zh")
                 if (isChinese) {
+                    // Already on Chinese IME — just switch schema if needed
+                    if (schema != null) {
+                        rimeSelectSchema(schema)
+                    }
                     cont.resumeWith(Result.success(true))
                 } else {
-                    // Not on Chinese IME — activate Rime directly instead of enumerateIme()
-                    // enumerateIme() cycles through IMEs causing visible flashing
+                    // Not on Chinese IME — activate Rime + switch schema atomically
                     val rimeEntries = availableIme().filter { it.addon.equals("rime", ignoreCase = true) }
                     if (rimeEntries.isNotEmpty()) {
                         activateIme(rimeEntries.first().uniqueName)
                     }
                     rimeSetAsciiMode(false)
+                    // Set schema immediately after IME activation — same FcitxJob ensures Rime session sees it
+                    if (schema != null) {
+                        rimeSelectSchema(schema)
+                    }
                     cont.resumeWith(Result.success(false))
                 }
             }
@@ -134,33 +145,49 @@ class FcitxLanguageAdapter(private val service: FcitxInputMethodService) : Langu
             SecLogger.d("FcitxAdapter", "ensureChineseIme: already Chinese, done")
             return
         }
-        // Wait briefly for IME switch to take effect
-        delay(50)
+        // Wait for IME switch to take effect
+        delay(200)
+        // Verify schema took effect
+        if (schema != null) {
+            val currentSchema = suspendCancellableCoroutine<String> { cont ->
+                service.postFcitxJob {
+                    if (!cont.isActive) return@postFcitxJob
+                    cont.resumeWith(Result.success(rimeCurrentSchema()))
+                }
+            }
+            SecLogger.d("FcitxAdapter", "ensureChineseIme: currentSchema='$currentSchema', expected='$schema'")
+            if (currentSchema != schema) {
+                // Schema not applied — force IC recreation then retry
+                SecLogger.d("FcitxAdapter", "ensureChineseIme: schema not applied, forcing focusOutIn + retry")
+                suspendCancellableCoroutine<Unit> { cont ->
+                    service.postFcitxJob {
+                        if (!cont.isActive) return@postFcitxJob
+                        focusOutIn()
+                        if (cont.isActive) cont.resumeWith(Result.success(Unit))
+                    }
+                }
+                delay(100)
+                suspendCancellableCoroutine<Unit> { cont ->
+                    service.postFcitxJob {
+                        if (!cont.isActive) return@postFcitxJob
+                        rimeSelectSchema(schema)
+                        if (cont.isActive) cont.resumeWith(Result.success(Unit))
+                    }
+                }
+                delay(50)
+            }
+        }
         SecLogger.d("FcitxAdapter", "ensureChineseIme: done")
     }
 
     override suspend fun activateT9Schema() {
-        SecLogger.d("FcitxAdapter", "activateT9Schema: selecting rime_frost_t9 via direct Rime API")
-        suspendCancellableCoroutine<Unit> { cont ->
-            service.postFcitxJob {
-                if (!cont.isActive) return@postFcitxJob
-                rimeSelectSchema("rime_frost_t9")
-                if (cont.isActive) cont.resumeWith(Result.success(Unit))
-            }
-        }
-        SecLogger.d("FcitxAdapter", "activateT9Schema: done")
+        SecLogger.d("FcitxAdapter", "activateT9Schema: via ensureChineseImeWithSchema")
+        ensureChineseImeWithSchema("rime_frost_t9")
     }
 
     override suspend fun activateQwertySchema() {
-        SecLogger.d("FcitxAdapter", "activateQwertySchema: selecting rime_frost via direct Rime API")
-        suspendCancellableCoroutine<Unit> { cont ->
-            service.postFcitxJob {
-                if (!cont.isActive) return@postFcitxJob
-                rimeSelectSchema("rime_frost")
-                if (cont.isActive) cont.resumeWith(Result.success(Unit))
-            }
-        }
-        SecLogger.d("FcitxAdapter", "activateQwertySchema: done")
+        SecLogger.d("FcitxAdapter", "activateQwertySchema: via ensureChineseImeWithSchema")
+        ensureChineseImeWithSchema("rime_frost")
     }
 
     override suspend fun commitCurrentPreedit() {

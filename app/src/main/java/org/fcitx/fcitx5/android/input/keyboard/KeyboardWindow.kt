@@ -252,10 +252,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
                 switchingMode = true
                 service.lifecycleScope.launch {
                     languageAdapter.commitCurrentPreedit()
-                    languageAdapter.ensureChineseIme()
-                    // Switch layout AFTER ensureChineseIme completes so that
-                    // attachLayout's onInputMethodUpdate sees the Chinese IME
-                    // and T9Keyboard language key shows "中/英" not "英/中"
+                    // activateT9Schema handles ensureChineseIme internally
+                    languageAdapter.activateT9Schema()
+                    // Switch layout AFTER activateT9Schema completes so that
+                    // attachLayout's onInputMethodUpdate sees the Chinese IME + T9 schema
                     switchLayout(T9Keyboard.Name)
                     switchingMode = false
                 }

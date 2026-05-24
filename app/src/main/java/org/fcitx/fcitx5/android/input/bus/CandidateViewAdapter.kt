@@ -103,15 +103,20 @@ private val VALID_PINYIN = setOf(
 private fun t9PinyinOptions(digits: String): List<String> {
     if (digits.isEmpty()) return emptyList()
     val results = mutableSetOf<String>()
-    // Try all prefix lengths: consume 1 digit, 2 digits, ... up to all digits
-    for (prefixLen in 1..digits.length) {
+    // Only consider up to 6 digits (longest pinyin "zhuang" = 6 letters)
+    // to avoid exponential blowup on long digit sequences
+    val maxPrefix = minOf(digits.length, 6)
+    for (prefixLen in 1..maxPrefix) {
         val prefixDigits = digits.substring(0, prefixLen)
         // Generate all letter combinations for this prefix
         var candidates = listOf("")
         for (digit in prefixDigits) {
             val letters = T9_MAP[digit] ?: continue
+            // Early prune: skip candidates that can't form valid pinyin prefixes
             candidates = candidates.flatMap { prefix ->
                 letters.map { ch -> prefix + ch }
+            }.filter { candidate ->
+                VALID_PINYIN.any { it.startsWith(candidate) }
             }
         }
         // Filter to valid pinyin

@@ -20,7 +20,7 @@ object Versions {
     const val baseVersionCode = 10
     const val baseVersionName = "0.1.2"
 
-    val supportedABIs = setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+    val supportedABIs = setOf("arm64-v8a", "x86_64")
     const val fallbackABI = "arm64-v8a"
 
     fun calculateVersionCode(abi: String = fallbackABI): Int {
